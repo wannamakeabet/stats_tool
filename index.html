@@ -1,0 +1,3360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>k8's gr8 analysis tool</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%232A52D8%22/><text x=%2250%22 y=%2270%22 font-family=%22system-ui, sans-serif%22 font-size=%2255%22 font-weight=%22bold%22 fill=%22white%22 text-anchor=%22middle%22>k8</text></svg>">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap');
+:root{--bg:#F4F6FA;--surface:#FFFFFF;--surface2:#EEF1F7;--surface3:#E3E8F0;--border:rgba(0,0,0,0.09);--bb:rgba(0,0,0,0.15);--accent:#2A52D8;--teal:#1A9668;--red:#D4222B;--amber:#B87800;--text:#0D1117;--muted:#4A5568;--dim:#718096;--mono:'DM Mono',monospace;--sans:'Syne',sans-serif;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(42,82,216,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(42,82,216,0.04) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+.app{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:48px 24px 80px;}
+
+/* ── Header ── */
+.logo-row{display:flex;align-items:center;gap:12px;margin-bottom:40px;}
+.logo-mark{width:36px;height:36px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:white;flex-shrink:0;}
+.logo-text{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;}
+h1{font-size:clamp(28px,5vw,46px);font-weight:800;line-height:1.05;letter-spacing:-.03em;margin-bottom:12px;}
+h1 em{font-style:normal;color:var(--accent);}
+.hero-sub{font-family:var(--mono);font-size:13px;color:var(--muted);line-height:1.7;max-width:540px;}
+
+/* ── Cards & sections ── */
+.section{margin-bottom:36px;}
+.section-label{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.section-num{width:20px;height:20px;border:1px solid var(--bb);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--accent);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 28px;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.5;}
+.hidden{display:none!important;}
+
+/* ── Upload ── */
+.drop-zone{border:1.5px dashed var(--bb);border-radius:10px;padding:44px 32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--accent);background:rgba(42,82,216,0.05);}
+.drop-icon{width:44px;height:44px;margin:0 auto 14px;background:rgba(42,82,216,0.1);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.drop-title{font-size:15px;font-weight:600;margin-bottom:5px;}
+.drop-sub{font-size:12px;color:var(--muted);font-family:var(--mono);}
+textarea{width:100%;background:var(--surface2);border:1px solid var(--bb);border-radius:8px;padding:12px 14px;color:var(--text);font-family:var(--mono);font-size:12px;resize:vertical;min-height:90px;outline:none;transition:border .15s;}
+textarea:focus{border-color:var(--accent);}
+.schema-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-top:14px;}
+.schema-item{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;}
+.sc-col{font-family:var(--mono);font-size:11px;color:var(--teal);margin-bottom:2px;}
+.sc-type{font-size:10px;color:var(--dim);}
+.sc-sample{font-size:10px;color:var(--muted);margin-top:2px;font-family:var(--mono);}
+.file-chip{display:inline-flex;align-items:center;gap:7px;background:rgba(26,150,104,.08);border:1px solid rgba(26,150,104,.2);border-radius:6px;padding:6px 12px;font-family:var(--mono);font-size:12px;color:var(--teal);margin-top:12px;}
+.col-chip{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .15s;user-select:none;position:relative;}
+.col-chip:hover{border-color:var(--bb);}
+.col-chip.is-metric{border-color:var(--accent);background:rgba(42,82,216,.08);}
+.col-chip.is-date{border-color:rgba(26,150,104,.5);background:rgba(26,150,104,.07);}
+.col-chip.is-ignore{opacity:.4;}
+.col-chip.is-ignore .sc-col{color:var(--dim);}
+.col-role{font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;font-family:var(--mono);}
+.col-role.role-metric{color:var(--accent);}
+.col-role.role-date{color:var(--teal);}
+.col-role.role-dim{color:var(--dim);}
+.col-role.role-ignore{color:var(--dim);}
+.col-actions{display:flex;gap:4px;margin-top:7px;flex-wrap:wrap;}
+.col-act{font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid var(--border);color:var(--dim);cursor:pointer;font-family:var(--mono);background:transparent;transition:all .12s;}
+.col-act:hover{border-color:var(--bb);color:var(--text);}
+.col-act.active-metric{background:rgba(42,82,216,.1);border-color:var(--accent);color:var(--accent);}
+.col-act.active-date{background:rgba(26,150,104,.1);border-color:rgba(26,150,104,.5);color:var(--teal);}
+.col-act.active-ignore{background:rgba(123,139,142,.15);border-color:var(--dim);color:var(--dim);}
+
+/* ── Context ── */
+.q-block{margin-bottom:18px;}
+.q-label{font-size:13px;font-weight:600;margin-bottom:8px;}
+.q-opts{display:flex;flex-wrap:wrap;gap:7px;}
+.q-opt{padding:6px 14px;border:1px solid var(--bb);border-radius:6px;font-size:12px;font-family:var(--mono);color:var(--muted);cursor:pointer;transition:all .15s;background:var(--surface2);}
+.q-opt:hover{border-color:var(--accent);color:var(--text);}
+.q-opt.on{border-color:var(--accent);background:rgba(42,82,216,.1);color:var(--text);}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:8px;font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;border:none;}
+.btn-p{background:var(--accent);color:#fff;}.btn-p:hover{background:#2538C0;transform:translateY(-1px);}
+.btn-p:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-g{background:transparent;color:var(--muted);border:1px solid var(--bb);}.btn-g:hover{color:var(--text);background:var(--surface2);}
+
+/* ── Running ── */
+.pulse{width:56px;height:56px;border-radius:50%;border:2px solid var(--accent);margin:0 auto 20px;position:relative;animation:pr 1.5s ease-in-out infinite;}
+.pulse::after{content:'';position:absolute;inset:8px;border-radius:50%;background:var(--accent);opacity:.3;animation:pi 1.5s ease-in-out infinite;}
+@keyframes pr{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:.7}}
+@keyframes pi{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+.prog-list{display:flex;flex-direction:column;gap:5px;margin-top:20px;text-align:left;}
+.prog-item{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11px;color:var(--dim);padding:7px 11px;border-radius:6px;transition:all .3s;}
+.prog-item.act{color:var(--accent);background:rgba(42,82,216,.08);}
+.prog-item.done{color:var(--teal);}
+.prog-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.prog-item.act .prog-dot{animation:blink .8s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+
+/* ── Results ── */
+.r-header{margin-bottom:28px;}
+.r-headline{font-size:22px;font-weight:700;margin-bottom:8px;line-height:1.25;}
+.r-meta{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;}
+.r-meta span{display:flex;align-items:center;gap:5px;}
+.r-meta span::before{content:'·';color:var(--dim);}
+.r-meta span:first-child::before{display:none;}
+
+.mod-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:18px;overflow:hidden;}
+.mod-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:14px;}
+.mod-ic{width:30px;height:30px;background:rgba(42,82,216,.1);border:1px solid rgba(42,82,216,.25);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--accent);flex-shrink:0;font-family:var(--mono);font-weight:500;}
+.mod-title{font-size:15px;font-weight:700;margin-bottom:3px;}
+.mod-subtitle{font-size:12px;color:var(--muted);}
+.mod-body{padding:20px 22px;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:20px;}
+.stat-c{background:var(--surface2);border-radius:8px;padding:12px 14px;border:1px solid var(--border);}
+.stat-lbl{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;}
+.stat-val{font-size:20px;font-weight:700;line-height:1;}
+.stat-val.pos{color:var(--teal);}
+.stat-val.neg{color:var(--red);}
+.stat-val.neu{color:var(--accent);}
+.stat-val.warn{color:var(--amber);}
+.plain-box{background:linear-gradient(135deg,rgba(42,82,216,.06),rgba(26,150,104,.04));border:1px solid rgba(42,82,216,.2);border-radius:9px;padding:18px 20px;margin-bottom:18px;}
+.plain-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:7px;}
+.plain-lbl::before{content:'';width:14px;height:1px;background:var(--accent);}
+.plain-txt{font-size:14px;line-height:1.75;color:var(--text);}
+.action-box{background:rgba(26,150,104,.07);border:1px solid rgba(26,150,104,.2);border-radius:9px;padding:16px 20px;}
+.act-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--teal);text-transform:uppercase;margin-bottom:7px;font-weight:600;}
+.act-txt{font-size:13px;line-height:1.75;color:var(--text);}
+.chart-wrap{position:relative;height:210px;margin-bottom:18px;}
+.driver-row{display:grid;grid-template-columns:150px 1fr 70px 80px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.driver-row:last-child{border-bottom:none;}
+.d-lbl{color:var(--muted);font-family:var(--mono);font-size:11px;}
+.bar-w{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;}
+.bar-f{height:100%;border-radius:3px;}
+.d-val{font-family:var(--mono);font-weight:500;text-align:right;font-size:12px;}
+.d-sig{font-family:var(--mono);font-size:10px;text-align:right;color:var(--dim);}
+.tech-row{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.tech-tag{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-size:9px;}
+.sig-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:8px;font-size:9px;font-family:var(--mono);font-weight:500;}
+.sig-yes{background:rgba(26,150,104,.12);color:var(--teal);border:1px solid rgba(26,150,104,.25);}
+.sig-no{background:rgba(113,128,150,.12);color:var(--dim);border:1px solid var(--border);}
+.sig-warn{background:rgba(184,120,0,.1);color:var(--amber);border:1px solid rgba(184,120,0,.25);}
+
+/* ── PDF Export Styles ── */
+@media print {
+  body { background: #fff !important; color: #000 !important; }
+  .app { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
+  .section:not(#sec-results) { display: none !important; }
+  h1 { font-size: 28px !important; color: #000 !important; margin-bottom: 0px !important; }
+  .hero-sub { display: none !important; }
+  .logo-text { color: #555 !important; }
+  .mod-card { break-inside: avoid; border: 1px solid #e0e0e0 !important; background: #fff !important; margin-bottom: 24px !important; box-shadow: none !important; color: #000 !important; }
+  .stat-c { border-color: #eee !important; background: #f9f9f9 !important; }
+  .stat-lbl, .d-lbl, .d-sig, .tech-tag { color: #555 !important; }
+  .plain-box { background: #fdfdfd !important; border: 1px solid #e0e0e0 !important; }
+  .action-box { background: #fdfdfd !important; border: 1px solid #e0e0e0 !important; }
+  .plain-txt, .act-txt { color: #222 !important; }
+  .bar-w { background: #eee !important; }
+  .bar-f, .mod-ic { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .no-print { display: none !important; }
+  canvas { max-width: 100% !important; }
+}
+
+/* ── API key banner ── */
+#key-banner{background:var(--surface);border:1px solid rgba(255,184,0,.25);border-radius:12px;padding:20px 24px;margin-bottom:32px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+#key-banner.ok{border-color:rgba(64,193,141,.25);}
+.key-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:rgba(255,184,0,.12);}
+#key-banner.ok .key-icon{background:rgba(64,193,141,.12);}
+.key-info{flex:1;min-width:180px;}
+.key-title{font-size:13px;font-weight:600;margin-bottom:3px;}
+.key-sub{font-family:var(--mono);font-size:11px;color:var(--muted);}
+.key-input-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+#key-input{background:var(--surface2);border:1px solid var(--bb);border-radius:7px;padding:8px 12px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;width:280px;letter-spacing:.05em;transition:border .15s;}
+#key-input:focus{border-color:var(--accent);}
+.key-saved{font-family:var(--mono);font-size:11px;color:var(--teal);display:flex;align-items:center;gap:5px;}
+.key-change{font-family:var(--mono);font-size:11px;color:var(--dim);cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+
+.dq-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:18px;}
+.dq-panel.has-issues{border-color:rgba(255,107,107,.35);}
+.dq-panel.has-warnings{border-color:rgba(245,166,35,.3);}
+.dq-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;line-height:1.55;}
+.dq-row:last-child{border-bottom:none;}
+.dq-icon{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;margin-top:1px;}
+.dq-icon.err{background:rgba(255,107,107,.2);color:var(--red);}
+.dq-icon.warn{background:rgba(245,166,35,.15);color:var(--amber);}
+.dq-icon.info{background:rgba(0,212,168,.12);color:var(--teal);}
+.dq-msg{color:var(--text);}
+.dist-shape{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:4px;margin-left:6px;}
+.dist-normal{background:rgba(0,212,168,.1);color:var(--teal);}
+.dist-skew{background:rgba(245,166,35,.1);color:var(--amber);}
+.dist-bimodal{background:rgba(108,99,255,.1);color:var(--accent);}
+.dist-extreme{background:rgba(255,107,107,.1);color:var(--red);}
+
+/* ── Page nav ── */
+.page-nav{display:flex;gap:4px;margin-bottom:36px;background:var(--surface2);border-radius:10px;padding:4px;}
+.nav-btn{flex:1;padding:9px 16px;border-radius:7px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--muted);cursor:pointer;border:none;background:transparent;transition:all .15s;text-align:center;}
+.nav-btn:hover{color:var(--text);}
+.nav-btn.active{background:var(--surface);color:var(--text);border:1px solid var(--border-bright,rgba(255,255,255,.13));}
+
+/* ── Hypothesis testing page ── */
+.analysis-page{display:block;}
+.analysis-page.hidden-page{display:none;}
+
+/* ── Test wizard ── */
+.test-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:24px;}
+.test-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:all .15s;}
+.test-card:hover{border-color:var(--bb);}
+.test-card.selected{border-color:var(--accent);background:rgba(42,82,216,.07);}
+.test-card-icon{font-size:22px;margin-bottom:8px;font-family:var(--mono);}
+.test-card-title{font-size:13px;font-weight:600;margin-bottom:4px;}
+.test-card-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+
+/* ── Input groups ── */
+.inp-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+.inp-grid.cols-3{grid-template-columns:1fr 1fr 1fr;}
+.inp-group label{display:block;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:6px;}
+.inp-group input,.inp-group select{width:100%;background:var(--surface2);border:1px solid var(--bb);border-radius:7px;padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border .15s;}
+.inp-group input:focus,.inp-group select:focus{border-color:var(--accent);}
+.inp-group select option{background:var(--surface);}
+.inp-hint{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:4px;}
+
+/* ── Result cards ── */
+.result-hero{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px 28px;margin-bottom:16px;position:relative;overflow:hidden;}
+.result-hero::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.result-hero.sig::before{background:linear-gradient(90deg,var(--teal),rgba(0,212,168,.2));}
+.result-hero.not-sig::before{background:linear-gradient(90deg,var(--dim),transparent);}
+.result-hero.borderline::before{background:linear-gradient(90deg,var(--amber),rgba(245,166,35,.2));}
+.result-verdict{font-size:20px;font-weight:700;margin-bottom:8px;line-height:1.2;}
+.result-verdict.sig{color:var(--teal);}
+.result-verdict.not-sig{color:var(--muted);}
+.result-verdict.borderline{color:var(--amber);}
+.result-plain{font-size:14px;line-height:1.75;color:var(--text);margin-bottom:0;}
+
+.stats-grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px;}
+.stats-grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px;}
+@media(max-width:600px){.stats-grid-4,.stats-grid-3,.inp-grid,.inp-grid.cols-3{grid-template-columns:1fr 1fr;}}
+
+/* ── Visual: rejection region ── */
+.dist-viz{position:relative;height:90px;margin:16px 0;background:var(--surface2);border-radius:8px;overflow:hidden;}
+.dist-bar{position:absolute;bottom:0;width:2px;background:rgba(108,99,255,.5);border-radius:1px 1px 0 0;}
+.dist-reject{position:absolute;bottom:0;top:0;background:rgba(255,107,107,.15);}
+.dist-stat-line{position:absolute;top:0;bottom:0;width:2px;background:var(--amber);}
+.dist-stat-label{position:absolute;top:4px;font-family:var(--mono);font-size:9px;color:var(--amber);}
+.crit-line{position:absolute;top:0;bottom:0;width:1.5px;background:rgba(255,107,107,.7);border-style:dashed;}
+
+/* ── Power meter ── */
+.power-bar-track{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin-top:6px;}
+.power-bar-fill{height:100%;border-radius:4px;transition:width .5s ease;}
+
+/* ── History ── */
+.history-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.history-row:last-child{border-bottom:none;}
+.history-badge{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="logo-row">
+  <div class="logo-mark">k8</div>
+  <div class="logo-text">k8's gr8 analysis tool · updated 3/23/26</div>
+</div>
+
+<div class="page-nav no-print">
+  <button class="nav-btn active" id="nav-analysis" onclick="switchPage('analysis')">Analysis</button>
+</div>
+
+<div id="page-analysis">
+
+<div id="key-banner" class="no-print">
+  <div class="key-icon" id="key-icon">&#128273;</div>
+  <div class="key-info">
+    <div class="key-title" id="key-title">Add an Anthropic key for AI-generated insights <span style="font-weight:400;color:var(--dim)">(optional)</span></div>
+    <div class="key-sub" id="key-sub">Stats always run locally — key is only used to generate plain-English explanations for each module. Saved to your browser only, never transmitted anywhere else.</div>
+  </div>
+  <div id="key-input-row" class="key-input-row">
+    <input type="password" id="key-input" placeholder="sk-ant-api03-..." autocomplete="off" onkeydown="if(event.key==='Enter')saveKey()">
+    <button class="btn btn-g" style="font-size:12px;padding:8px 14px" onclick="saveKey()">Save key</button>
+  </div>
+  <div id="key-saved-row" style="display:none;align-items:center;gap:12px">
+    <span class="key-saved">&#10003; Key saved</span>
+    <span class="key-change" onclick="changeKey()">change</span>
+  </div>
+</div>
+
+<div class="no-print" id="hero-text">
+  <h1>Find what's actually<br><em>driving your numbers</em></h1>
+  <p class="hero-sub" style="margin-bottom:48px">Upload a CSV. The engine runs local statistical models — trend, seasonality, correlations, OLS regression, anomaly detection — then asks Claude to explain what it means in plain English.</p>
+</div>
+
+<div class="section" id="sec-upload">
+  <div class="section-label"><span class="section-num">1</span>Upload your dataset</div>
+  <div class="card">
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('fi').click()">
+      <div class="drop-icon">⬆</div>
+      <div class="drop-title">Drop a CSV file here</div>
+      <div class="drop-sub">or click to browse · CSV / TSV · up to 1M rows</div>
+    </div>
+    <input type="file" id="fi" accept=".csv,.tsv,.txt" style="display:none">
+
+    <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border);">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:8px;">OR PASTE CSV DATA</div>
+      <textarea id="paste-area" placeholder="date,sessions,bookings,revenue&#10;2024-01-01,3126610,58707,983199&#10;2024-02-01,3132901,60163,1042608"></textarea>
+      <button class="btn btn-g" style="margin-top:8px;font-size:12px" onclick="loadPaste()">Parse pasted data →</button>
+    </div>
+
+    <div id="demo-row" style="margin-top:12px">
+      <button class="btn btn-g" style="font-size:11px;padding:7px 14px" onclick="loadDemo()">Load Skiplagged demo data (19 months actuals)</button>
+    </div>
+
+    <div id="schema-wrap" class="hidden" style="margin-top:20px">
+      <div id="file-chip-el"></div>
+      <div id="row-count" style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px;"></div>
+      <div class="schema-grid" id="schema-cols"></div>
+    </div>
+  </div>
+</div>
+
+<div class="section hidden" id="sec-ctx">
+  <div class="section-label"><span class="section-num">2</span>Business context</div>
+  <div class="card">
+    <div class="q-block">
+      <div class="q-label">What are you trying to answer?</div>
+      <div class="q-opts">
+        <div class="q-opt" onclick="pick(this,'goal','revenue')" data-v="revenue">What's driving revenue changes?</div>
+        <div class="q-opt" onclick="pick(this,'goal','growth')" data-v="growth">Are we growing or declining?</div>
+        <div class="q-opt" onclick="pick(this,'goal','conversion')" data-v="conversion">What's our conversion problem?</div>
+        <div class="q-opt" onclick="pick(this,'goal','seasonality')" data-v="seasonality">Is this seasonal or structural?</div>
+        <div class="q-opt" onclick="pick(this,'goal','channels')" data-v="channels">Which channels are working?</div>
+        <div class="q-opt" onclick="pick(this,'goal','feature')" data-v="feature">Did this feature move the needle?</div>
+        <div class="q-opt" onclick="pick(this,'goal','pop')" data-v="pop">What's changed? <span style="font-size:10px;opacity:.6;margin-left:4px">period over period explorer</span></div>
+      </div>
+    </div>
+    
+    <div class="q-block" style="margin-top:16px" id="metric-sel-block">
+      <div class="q-label">Primary outcome metric <span style="color:var(--dim);font-weight:400">(if multiple metrics selected above, pick the main one)</span></div>
+      <div id="metric-select-opts" class="q-opts"></div>
+    </div>
+
+    <div class="q-block" style="margin-top:16px">
+      <div class="q-label">Aggregate By (Time Grain)</div>
+      <div class="q-opts">
+        <div class="q-opt on" onclick="pick(this,'grain','auto')" data-v="auto">Auto</div>
+        <div class="q-opt" onclick="pick(this,'grain','day')" data-v="day">Daily</div>
+        <div class="q-opt" onclick="pick(this,'grain','week')" data-v="week">Weekly</div>
+        <div class="q-opt" onclick="pick(this,'grain','month')" data-v="month">Monthly</div>
+      </div>
+    </div>
+
+    <div class="q-block" style="margin-top:16px">
+      <div class="q-label">Comparison period — how should we measure change?</div>
+      <div class="q-opts">
+        <div class="q-opt" onclick="pick(this,'comp','wow')" data-v="wow">Week-over-week <span style="font-size:10px;opacity:.6;margin-left:4px">same day of week</span></div>
+        <div class="q-opt" onclick="pick(this,'comp','mom')" data-v="mom">Month-over-month <span style="font-size:10px;opacity:.6;margin-left:4px">28-day window</span></div>
+        <div class="q-opt on" onclick="pick(this,'comp','yoy')" data-v="yoy">Year-over-year <span style="font-size:10px;opacity:.6;margin-left:4px">default</span></div>
+        <div class="q-opt" onclick="pick(this,'comp','auto')" data-v="auto">Auto-detect</div>
+      </div>
+    </div>
+
+    <div class="q-block" style="margin-top:14px">
+      <div class="q-label">Focus window or segment? <span style="color:var(--dim);font-weight:400">(optional)</span></div>
+      <textarea id="focus-inp" rows="2" placeholder="e.g. 'last 4 weeks', 'US only', 'post-launch vs pre-launch'"></textarea>
+    </div>
+    <div class="q-block" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      <div class="q-label">Data preprocessing</div>
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-top:6px">
+        <input type="checkbox" id="winsorize-toggle" onchange="ctx.winsorize=this.checked" style="width:15px;height:15px;margin-top:2px;accent-color:var(--accent);flex-shrink:0">
+        <div>
+          <div style="font-size:13px;font-weight:600">Winsorize before analysis</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px">Cap top &amp; bottom 5% of values before running regression and correlations — improves stability on skewed or outlier-heavy data</div>
+        </div>
+      </label>
+    </div>
+    
+    <div class="q-block" style="margin-top:14px; background:var(--surface2); padding:12px 14px; border-radius:8px; border:1px solid var(--bb);">
+      <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;cursor:pointer;color:var(--text);">
+        <input type="checkbox" id="use-ga-ann" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+        Include GA Annotations & External Market Events
+      </label>
+    </div>
+
+    <div style="margin-top:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-p" id="run-btn" onclick="runAnalysis()" disabled>Run analysis →</button>
+    </div>
+  </div>
+</div>
+
+<div class="section hidden" id="sec-run">
+  <div class="card" style="text-align:center;padding:44px 24px">
+    <div class="pulse"></div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--accent);margin-bottom:6px" id="run-lbl">Initializing…</div>
+    <div style="font-size:13px;color:var(--muted)">Running statistical engine on your dataset</div>
+    <div class="prog-list" id="prog-list"></div>
+  </div>
+</div>
+
+<div class="section hidden" id="sec-results">
+  <div id="results-container"></div>
+  <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap" class="no-print">
+    <button class="btn btn-g" onclick="resetAll()">New analysis</button>
+    <button class="btn btn-g" onclick="window.print()">Export to PDF</button>
+  </div>
+</div>
+
+</div><!-- /page-analysis -->
+
+
+      <!-- One-sample t -->
+      <div id="inputs-one_sample_t">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:18px;font-family:var(--mono)">Test whether a sample mean is different from a known population or target value.</p>
+        <div class="inp-grid cols-3">
+          <div class="inp-group">
+            <label>Sample mean (x̄)</label>
+            <input type="number" id="ost-mean" placeholder="e.g. 18.50" step="any">
+            <div class="inp-hint">Average value you observed</div>
+          </div>
+          <div class="inp-group">
+            <label>Sample std dev (s)</label>
+            <input type="number" id="ost-std" placeholder="e.g. 2.30" step="any" min="0.0001">
+            <div class="inp-hint">Standard deviation of your sample</div>
+          </div>
+          <div class="inp-group">
+            <label>Sample size (n)</label>
+            <input type="number" id="ost-n" placeholder="e.g. 150" min="2">
+            <div class="inp-hint">Number of observations</div>
+          </div>
+        </div>
+        <div class="inp-grid cols-3">
+          <div class="inp-group">
+            <label>Null hypothesis value (μ₀)</label>
+            <input type="number" id="ost-mu" placeholder="e.g. 17.00" step="any">
+            <div class="inp-hint">The value you're testing against</div>
+          </div>
+          <div class="inp-group">
+            <label>Tail</label>
+            <select id="ost-tail">
+              <option value="two">Two-tailed (is it different?)</option>
+              <option value="greater">Upper-tailed (is it greater?)</option>
+              <option value="less">Lower-tailed (is it less?)</option>
+            </select>
+          </div>
+          <div class="inp-group">
+            <label>Significance level (α)</label>
+            <select id="ost-alpha">
+              <option value="0.05" selected>0.05 (standard)</option>
+              <option value="0.01">0.01 (strict)</option>
+              <option value="0.10">0.10 (lenient)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two-sample t -->
+      <div id="inputs-two_sample_t" style="display:none">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:18px;font-family:var(--mono)">Compare means from two independent groups (e.g. mobile vs desktop revenue per session).</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:16px">
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--teal);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">Group A</div>
+            <div class="inp-group" style="margin-bottom:12px"><label>Mean (x̄ₐ)</label><input type="number" id="tst-mean-a" placeholder="e.g. 18.50" step="any"></div>
+            <div class="inp-group" style="margin-bottom:12px"><label>Std dev (sₐ)</label><input type="number" id="tst-std-a" placeholder="e.g. 2.30" step="any" min="0.0001"></div>
+            <div class="inp-group"><label>n</label><input type="number" id="tst-n-a" placeholder="e.g. 150" min="2"></div>
+          </div>
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">Group B</div>
+            <div class="inp-group" style="margin-bottom:12px"><label>Mean (x̄ᵦ)</label><input type="number" id="tst-mean-b" placeholder="e.g. 16.80" step="any"></div>
+            <div class="inp-group" style="margin-bottom:12px"><label>Std dev (sᵦ)</label><input type="number" id="tst-std-b" placeholder="e.g. 2.10" step="any" min="0.0001"></div>
+            <div class="inp-group"><label>n</label><input type="number" id="tst-n-b" placeholder="e.g. 140" min="2"></div>
+          </div>
+        </div>
+        <div class="inp-grid">
+          <div class="inp-group">
+            <label>Tail</label>
+            <select id="tst-tail">
+              <option value="two">Two-tailed (are they different?)</option>
+              <option value="greater">A > B</option>
+              <option value="less">A &lt; B</option>
+            </select>
+          </div>
+          <div class="inp-group">
+            <label>Significance level (α)</label>
+            <select id="tst-alpha">
+              <option value="0.05" selected>0.05</option>
+              <option value="0.01">0.01</option>
+              <option value="0.10">0.10</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Proportion z (one sample) -->
+      <div id="inputs-proportion_z" style="display:none">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:18px;font-family:var(--mono)">Test whether an observed rate (conversion, click-through, booking) is different from a baseline.</p>
+        <div class="inp-grid cols-3">
+          <div class="inp-group">
+            <label>Observed conversions</label>
+            <input type="number" id="pz-x" placeholder="e.g. 312" min="0">
+            <div class="inp-hint">How many successes you saw</div>
+          </div>
+          <div class="inp-group">
+            <label>Total trials (n)</label>
+            <input type="number" id="pz-n" placeholder="e.g. 8200" min="1">
+            <div class="inp-hint">Total observations</div>
+          </div>
+          <div class="inp-group">
+            <label>Baseline rate (p₀)</label>
+            <input type="number" id="pz-p0" placeholder="e.g. 0.035" step="any" min="0" max="1">
+            <div class="inp-hint">Expected or historical rate (0–1)</div>
+          </div>
+        </div>
+        <div class="inp-grid">
+          <div class="inp-group">
+            <label>Tail</label>
+            <select id="pz-tail">
+              <option value="two">Two-tailed (is it different?)</option>
+              <option value="greater">Upper (is it higher?)</option>
+              <option value="less">Lower (is it lower?)</option>
+            </select>
+          </div>
+          <div class="inp-group">
+            <label>Significance level (α)</label>
+            <select id="pz-alpha">
+              <option value="0.05" selected>0.05</option>
+              <option value="0.01">0.01</option>
+              <option value="0.10">0.10</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two-proportion z -->
+      <div id="inputs-two_proportion_z" style="display:none">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:18px;font-family:var(--mono)">Compare conversion rates between control and variant — the classic A/B test.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:16px">
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--teal);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">Control</div>
+            <div class="inp-group" style="margin-bottom:12px"><label>Conversions</label><input type="number" id="tpz-x1" placeholder="e.g. 312" min="0"></div>
+            <div class="inp-group"><label>Total (n₁)</label><input type="number" id="tpz-n1" placeholder="e.g. 8200" min="1"></div>
+          </div>
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">Variant</div>
+            <div class="inp-group" style="margin-bottom:12px"><label>Conversions</label><input type="number" id="tpz-x2" placeholder="e.g. 381" min="0"></div>
+            <div class="inp-group"><label>Total (n₂)</label><input type="number" id="tpz-n2" placeholder="e.g. 8150" min="1"></div>
+          </div>
+        </div>
+        <div class="inp-grid">
+          <div class="inp-group">
+            <label>Tail</label>
+            <select id="tpz-tail">
+              <option value="two">Two-tailed (any difference?)</option>
+              <option value="greater">Variant > Control</option>
+              <option value="less">Variant &lt; Control</option>
+            </select>
+          </div>
+          <div class="inp-group">
+            <label>Significance level (α)</label>
+            <select id="tpz-alpha">
+              <option value="0.05" selected>0.05</option>
+              <option value="0.01">0.01</option>
+              <option value="0.10">0.10</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chi-square goodness of fit -->
+      <div id="inputs-chi_square" style="display:none">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:18px;font-family:var(--mono)">Test whether observed category counts match expected proportions (e.g. channel distribution vs last quarter).</p>
+        <div class="inp-group" style="margin-bottom:16px">
+          <label>Paste observed counts and expected proportions (one row per category)</label>
+          <textarea id="chisq-data" rows="6" placeholder="Category, Observed, Expected%&#10;Email,3200,35&#10;Organic,2800,30&#10;Paid,2100,25&#10;Referral,900,10" style="font-family:var(--mono);font-size:12px;width:100%;background:var(--surface2);border:1px solid var(--bb);border-radius:8px;padding:12px;color:var(--text);outline:none;resize:vertical"></textarea>
+          <div class="inp-hint">Format: Category name, observed count, expected % (must sum to 100)</div>
+        </div>
+        <div class="inp-group">
+          <label>Significance level (α)</label>
+          <select id="chisq-alpha" style="width:200px">
+            <option value="0.05" selected>0.05</option>
+            <option value="0.01">0.01</option>
+            <option value="0.10">0.10</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Paired t -->
+      <div id="inputs-paired_t" style="display:none">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:18px;font-family:var(--mono)">Test whether the same metric changed significantly before vs after an event (launch, campaign, etc.).</p>
+        <div class="inp-group" style="margin-bottom:16px">
+          <label>Paste paired values — one pair per line (before, after)</label>
+          <textarea id="paired-data" rows="8" placeholder="Before,After&#10;1200,1350&#10;980,1100&#10;1450,1520&#10;1100,1280&#10;890,950" style="font-family:var(--mono);font-size:12px;width:100%;background:var(--surface2);border:1px solid var(--bb);border-radius:8px;padding:12px;color:var(--text);outline:none;resize:vertical"></textarea>
+          <div class="inp-hint">Each row is one observation measured twice (e.g. same user/route pre and post)</div>
+        </div>
+        <div class="inp-grid">
+          <div class="inp-group">
+            <label>Tail</label>
+            <select id="paired-tail">
+              <option value="two">Two-tailed (did it change?)</option>
+              <option value="greater">After > Before</option>
+              <option value="less">After &lt; Before</option>
+            </select>
+          </div>
+          <div class="inp-group">
+            <label>Significance level (α)</label>
+            <select id="paired-alpha">
+              <option value="0.05" selected>0.05</option>
+              <option value="0.01">0.01</option>
+              <option value="0.10">0.10</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:10px;align-items:center">
+        <button class="btn btn-p" onclick="runHypTest()">Run test →</button>
+        <button class="btn btn-g" onclick="clearHypResult()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+
+</div><!-- /app --><script>
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DATA DICTIONARY (Context Engine)
+// ═══════════════════════════════════════════════════════════════════════════
+const DATA_DICTIONARY = {
+  "purchase_profit": { 
+    format: "number", 
+    definition: "Event count of Book With Skiplagged (BWS) non-referral bookings. This is a volume metric, NOT a financial/revenue measure in dollars." 
+  },
+  "service_fee_revenue": { 
+    format: "currency", 
+    definition: "Total top-line revenue collected from direct booking service fees." 
+  },
+  "hc_bookings": { 
+    format: "number", 
+    definition: "Count of hidden-city ticketing bookings." 
+  },
+  "bookings": { 
+    format: "number", 
+    definition: "Total successful flight or hotel bookings." 
+  },
+  "sessions": { 
+    format: "number", 
+    definition: "Total unique user sessions on the platform." 
+  },
+  "dau_count": {
+    format: "number",
+    definition: "Daily Active Users."
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  GA ANNOTATIONS
+// ═══════════════════════════════════════════════════════════════════════════
+const GA_ANNOTATIONS = [
+  {title: 'organic social active', description: 'paid ', dateRange: 'Nov 30, 2022 - Mar 30, 2023'},
+  {title: 'pmax incrementality test', description: 'pmax brand turned off completely', dateRange: 'May 1 - May 31, 2024'},
+  {title: 'incorrect price hacker data', description: 'event was incorrectly configured; updated 6/6', dateRange: 'Jun 5, 2025'},
+  {title: 'Price Hacker live', description: '', dateRange: 'Jun 5, 2025'},
+  {title: 'paid marketing paused', description: '', dateRange: 'Aug 13, 2025'},
+  {title: '3.12.1', description: '', dateRange: 'Aug 7, 2025'},
+  {title: '3.12.2', description: '', dateRange: 'Sep 15, 2025'},
+  {title: 'skiplagged benefits launched', description: 'service fee relabeled benefits on web', dateRange: 'Oct 27, 2025'},
+  {title: 'Book with Miles beta launched', description: '', dateRange: 'Sep 18, 2025'}
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  DATE NORMALIZATION (Supports precise day parsing for grain adjustments)
+// ═══════════════════════════════════════════════════════════════════════════
+function normalizeDate(d) {
+  if(d===null||d===undefined||d==='') return null;
+  const s = String(d).trim();
+  if(!s||s.startsWith('#')) return null;
+  if (/^\d{8}$/.test(s)) return s.slice(0,4) + '-' + s.slice(4,6) + '-' + s.slice(6,8);
+  if (/^\d{4}[-\/]\d{2}[-\/]\d{2}/.test(s)) return s.replace(/\//g,'-').slice(0,10); // preserves day
+  if (/^\d{4}-\d{2}$/.test(s)) return s + '-01'; // Default to 1st if month only
+  if (/^\d{6}$/.test(s)) return s.slice(0,4) + '-' + s.slice(4,6) + '-01';
+  // Check for common M/D/YYYY or MM/DD/YYYY
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if(m) {
+      let yr = m[3];
+      if(yr.length === 2) yr = (parseInt(yr)<50 ? '20' : '19') + yr;
+      return `${yr}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+  }
+  return null; 
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  STATISTICS ENGINE
+// ═══════════════════════════════════════════════════════════════════════════
+const Stats = (() => {
+  function mean(a) { return a.reduce((s,v)=>s+v,0)/a.length; }
+  function variance(a) { const m=mean(a); return a.reduce((s,v)=>s+(v-m)**2,0)/(a.length-1); }
+  function stddev(a) { return Math.sqrt(variance(a)); }
+  function stddevPop(a) { const m=mean(a); return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length); }
+
+  function betainc(x, a, b) {
+    if (x < 0 || x > 1) return NaN;
+    if (x === 0) return 0;
+    if (x === 1) return 1;
+    const lbeta = lgamma(a) + lgamma(b) - lgamma(a+b);
+    const front = Math.exp(Math.log(x)*a + Math.log(1-x)*b - lbeta) / a;
+    return front * betacf(x, a, b);
+  }
+  function lgamma(z) {
+    const c=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+    let y=z,tmp=z+5.5,ser=1.000000000190015;
+    tmp-=(z+0.5)*Math.log(tmp);
+    for(let i=0;i<6;i++) ser+=c[i]/++y;
+    return -tmp+Math.log(2.5066282746310005*ser/z);
+  }
+  function betacf(x, a, b) {
+    const MAXIT=200, EPS=3e-7;
+    let qab=a+b, qap=a+1, qam=a-1, c=1, d=1-qab*x/qap;
+    if(Math.abs(d)<1e-30) d=1e-30; d=1/d;
+    let h=d;
+    for(let m=1;m<=MAXIT;m++) {
+      const m2=2*m;
+      let aa=m*(b-m)*x/((qam+m2)*(a+m2));
+      d=1+aa*d; if(Math.abs(d)<1e-30) d=1e-30;
+      c=1+aa/c; if(Math.abs(c)<1e-30) c=1e-30;
+      d=1/d; h*=d*c;
+      aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
+      d=1+aa*d; if(Math.abs(d)<1e-30) d=1e-30;
+      c=1+aa/c; if(Math.abs(c)<1e-30) c=1e-30;
+      d=1/d; const del=d*c; h*=del;
+      if(Math.abs(del-1)<EPS) break;
+    }
+    return h;
+  }
+  function tpval(t, df) {
+    const x = df/(df + t*t);
+    return betainc(x, df/2, 0.5);
+  }
+
+  function linReg(x, y) {
+    const n=x.length, mx=mean(x), my=mean(y);
+    let sxy=0,sxx=0;
+    for(let i=0;i<n;i++){sxy+=(x[i]-mx)*(y[i]-my);sxx+=(x[i]-mx)**2;}
+    const slope=sxy/sxx, intercept=my-slope*mx;
+    const yhat=x.map(v=>slope*v+intercept);
+    const ssres=y.reduce((s,v,i)=>s+(v-yhat[i])**2,0);
+    const sstot=y.reduce((s,v)=>s+(v-my)**2,0);
+    const r2=1-ssres/sstot;
+    const se=Math.sqrt(ssres/(n-2)/sxx);
+    const tstat=slope/se;
+    const pval=tpval(tstat, n-2);
+    return {slope,intercept,r2,r:Math.sqrt(r2)*Math.sign(slope),se,tstat,pval};
+  }
+
+  function pearson(x, y) {
+    const n=x.length, mx=mean(x), my=mean(y);
+    let sxy=0,sxx=0,syy=0;
+    for(let i=0;i<n;i++){const dx=x[i]-mx,dy=y[i]-my;sxy+=dx*dy;sxx+=dx*dx;syy+=dy*dy;}
+    const r=sxy/Math.sqrt(sxx*syy);
+    const tstat=r*Math.sqrt(n-2)/Math.sqrt(1-r*r);
+    return {r, pval: tpval(tstat, n-2)};
+  }
+
+  function olsMultiple(Xcols, y) {
+    const n=y.length, k=Xcols.length+1;
+    if(n<=k+1||!Xcols.length||Xcols.some(c=>!c||c.length!==n)) return null;
+    if(y.reduce((s,v)=>s+(v-y.reduce((a,b)=>a+b,0)/n)**2,0)===0) return null;
+    const X = y.map((_,i)=>[1,...Xcols.map(c=>c[i])]);
+    const Xt = X[0].map((_,j)=>X.map(row=>row[j]));
+    if(!Xt||!Xt[0]) return null;
+    const XtX = Xt.map(rowi=>Xt.map(rowj=>rowi.reduce((s,v,o)=>s+v*rowj[o],0)));
+    const Xty = Xt.map(rowi=>rowi.reduce((s,v,o)=>s+v*y[o],0));
+    const inv = invertMatrix([...XtX.map(r=>[...r])]);
+    if (!inv) return null;
+    const coeffs = inv.map(row=>row.reduce((s,v,i)=>s+v*Xty[i],0));
+    if(coeffs.some(c=>isNaN(c)||!isFinite(c))) return null;
+    const yhat = X.map(row=>row.reduce((s,v,i)=>s+v*coeffs[i],0));
+    const ssres = y.reduce((s,v,i)=>s+(v-yhat[i])**2,0);
+    const sstot = y.reduce((s,v)=>s+(v-y.reduce((a,b)=>a+b,0)/n)**2,0);
+    if(sstot===0||ssres<0) return null;
+    const r2 = 1-ssres/sstot;
+    const adjR2 = 1-(1-r2)*(n-1)/(n-k-1);
+    const mse = ssres/(n-k);
+    if(mse<=0) return null;
+    const seCoeffs = inv.map((row,i)=>Math.sqrt(mse*inv[i][i]));
+    if(seCoeffs.some(s=>isNaN(s)||!isFinite(s)||s<=0)) return null;
+    const tstats = coeffs.map((c,i)=>c/seCoeffs[i]);
+    const pvals = tstats.map(t=>tpval(t, n-k));
+    return {coeffs,r2,adjR2,seCoeffs,tstats,pvals,ssres,mse};
+  }
+  function invertMatrix(m) {
+    const n=m.length;
+    const I=m.map((_,i)=>m[0].map((_,j)=>i===j?1:0));
+    for(let i=0;i<n;i++){
+      let maxV=Math.abs(m[i][i]),maxR=i;
+      for(let r=i+1;r<n;r++) if(Math.abs(m[r][i])>maxV){maxV=Math.abs(m[r][i]);maxR=r;}
+      [m[i],m[maxR]]=[m[maxR],m[i]]; [I[i],I[maxR]]=[I[maxR],I[i]];
+      if(Math.abs(m[i][i])<1e-12) return null;
+      const d=m[i][i];
+      for(let j=0;j<n;j++){m[i][j]/=d;I[i][j]/=d;}
+      for(let r=0;r<n;r++){if(r===i) continue; const f=m[r][i]; for(let j=0;j<n;j++){m[r][j]-=f*m[i][j];I[r][j]-=f*I[i][j];}}
+    }
+    return I;
+  }
+
+  function seasonalIndex(dates, values) {
+    const buckets={};
+    dates.forEach((d,i)=>{
+      if(!d||typeof d!=='string'||d.length<7) return;
+      const m=parseInt(d.slice(5,7));
+      if(isNaN(m)||m<1||m>12) return;
+      if(!buckets[m]) buckets[m]=[];
+      buckets[m].push(values[i]);
+    });
+    const mn=mean(values);
+    const si={};
+    for(const m in buckets){
+      const mi=parseInt(m);
+      if(!isNaN(mi)&&mi>=1&&mi<=12) si[mi]=mean(buckets[m])/mn;
+    }
+    return Object.keys(si).length>0?si:null;
+  }
+
+  function anomalies(values, dates, zThresh=2.0) {
+    const sorted=[...values].sort((a,b)=>a-b);
+    const q1=sorted[Math.floor(sorted.length*0.25)];
+    const q3=sorted[Math.floor(sorted.length*0.75)];
+    const iqr=q3-q1, lo=q1-1.5*iqr, hi=q3+1.5*iqr;
+    const m=mean(values), s=stddevPop(values);
+    // Robust: MAD-based z-score (handles skewed distributions better)
+    const med=median(values);
+    const madVal=mad(values);
+    const useRobust=madVal>0;
+    const out=values.map((v,i)=>{
+      const z=(v-m)/s;
+      const robustZ=useRobust?(v-med)/madVal:z;
+      // Flag if caught by IQR OR mean z-score OR robust z-score
+      const isOut=v<lo||v>hi||Math.abs(z)>zThresh||(useRobust&&Math.abs(robustZ)>3.5);
+      return {date:dates[i],value:v,z:+z.toFixed(3),robustZ:+robustZ.toFixed(3),outlier:isOut,direction:v>m?'high':'low'};
+    }).filter(x=>x.outlier);
+    return {outliers:out,q1,q3,iqr,lo,hi,mean:m,std:s,mad:madVal,median:med};
+  }
+
+  function detectGrain(dates) {
+    const sample = dates.filter(Boolean).slice(0, 20);
+    if (!sample.length) return 'month';
+    
+    // Check if everything maps to the 1st of the month or only has YYYY-MM
+    let isMonth = true;
+    for(let d of sample) {
+        if (/^\d{4}-W\d{2}$/.test(d)) return 'week';
+        const norm = normalizeDate(d);
+        if (norm && !norm.endsWith('-01')) {
+            isMonth = false;
+        }
+    }
+    if (isMonth) return 'month';
+    return 'day'; // Default to day if there are non-01 dates
+  }
+
+  function periodGrowth(dates, values, mode, grain) {
+    const map = {};
+    dates.forEach((d, i) => { if (d) map[d] = values[i]; });
+
+    function shiftDate(d, grain, steps) {
+      if (grain === 'day') {
+        const dt = new Date(d + 'T00:00:00Z');
+        dt.setUTCDate(dt.getUTCDate() - steps);
+        return dt.toISOString().slice(0, 10);
+      }
+      if (grain === 'week') {
+        const [yr, wk] = d.split('-W').map(Number);
+        let totalWk = yr * 52 + wk - steps;
+        const newYr = Math.floor(totalWk / 52);
+        const newWk = totalWk % 52 || 52;
+        return `${newYr}-W${String(newWk).padStart(2,'0')}`;
+      }
+      if (grain === 'month') {
+        const [yr, mo] = d.split('-').map(Number);
+        let totalMo = yr * 12 + mo - 1 - steps;
+        const newYr = Math.floor(totalMo / 12);
+        const newMo = totalMo % 12 + 1;
+        return `${newYr}-${String(newMo).padStart(2,'0')}`;
+      }
+      return null;
+    }
+
+    const stepsMap = { wow: { day: 7, week: 1, month: null }, mom: { day: 28, week: 4, month: 1 }, yoy: { day: 364,week: 52, month: 12 } };
+    const steps = stepsMap[mode]?.[grain];
+    if (!steps) return []; 
+
+    const result = [];
+    dates.forEach((d, i) => {
+      if (!d) return;
+      const prevD = shiftDate(d, grain, steps);
+      if (map[prevD] != null) {
+        const pct = (values[i] - map[prevD]) / map[prevD] * 100;
+        result.push({ date: d, prev_date: prevD, value: values[i], prev_value: map[prevD], pct, yoy: pct });
+      }
+    });
+    return result;
+  }
+
+  function describe(a) {
+    const s=[...a].sort((x,y)=>x-y);
+    return {n:a.length,mean:mean(a),std:stddevPop(a),min:s[0],q1:s[Math.floor(s.length*.25)],median:s[Math.floor(s.length*.5)],q3:s[Math.floor(s.length*.75)],max:s[s.length-1]};
+  }
+
+
+  // ── Skewness (moment-based) ───────────────────────────────────────────────
+  // ── Skewness (bias-corrected sample, Type 2 — matches SPSS/SAS) ──────────
+  function skewness(a) {
+    const n=a.length;
+    if(n<3) return 0;
+    const m=mean(a), s=stddevPop(a);
+    if(s===0) return 0;
+    const g1=a.reduce((sum,v)=>sum+((v-m)/s)**3,0)/n;
+    return g1*Math.sqrt(n*(n-1))/(n-2);
+  }
+
+  // ── Kurtosis (excess, Fisher definition) ─────────────────────────────────
+  function kurtosis(a) {
+    const n=a.length, m=mean(a), s=stddevPop(a);
+    if(s===0) return 0;
+    return a.reduce((sum,v)=>sum+((v-m)/s)**4,0)/n - 3;
+  }
+
+  // ── Histogram bins (Sturges + return edges+counts) ───────────────────────
+  function histogram(a, requestedBins) {
+    const sorted=[...a].sort((x,y)=>x-y);
+    const mn=sorted[0], mx=sorted[sorted.length-1];
+    if(mn===mx) return {bins:[{lo:mn,hi:mx,count:a.length,label:mn.toFixed(1)}],min:mn,max:mx};
+    const nBins=requestedBins||Math.min(30,Math.max(5,Math.ceil(1+3.322*Math.log10(a.length))));
+    const width=(mx-mn)/nBins;
+    const counts=new Array(nBins).fill(0);
+    a.forEach(v=>{
+      let i=Math.floor((v-mn)/width);
+      if(i>=nBins) i=nBins-1;
+      counts[i]++;
+    });
+    const bins=counts.map((count,i)=>({
+      lo:mn+i*width, hi:mn+(i+1)*width,
+      count,
+      label:(mn+i*width+(width/2)).toFixed(1)
+    }));
+    return {bins,min:mn,max:mx,binWidth:width,nBins};
+  }
+
+  // ── Missing value rate per column ─────────────────────────────────────────
+  function missingRate(data, col) {
+    const total=data.length;
+    if(!total) return 0;
+    const missing=data.filter(row=>row[col]==null||row[col]===''||isNaN(parseFloat(row[col]))).length;
+    return missing/total;
+  }
+
+  // ── Coefficient of Variation ─────────────────────────────────────────────
+  function cv(a) { const m=mean(a); return m!==0?stddevPop(a)/Math.abs(m):Infinity; }
+
+  // ── Variance Inflation Factor (pairwise, simplified) ─────────────────────
+  // Returns VIF for each predictor against all others via R² of each regressed on rest
+  function vif(Xcols) {
+    if(Xcols.length<2) return Xcols.map(()=>1);
+    return Xcols.map((col,i)=>{
+      const others=Xcols.filter((_,j)=>j!==i);
+      const res=olsMultiple(others,col);
+      if(!res) return 1;
+      return res.r2>=1?Infinity:1/(1-res.r2);
+    });
+  }
+
+  // ── Time gap detector (returns gaps > 2x median interval) ────────────────
+  function timeGaps(dates) {
+    if(dates.length<3) return [];
+    const dts=dates.map(d=>new Date(d+'T00:00:00Z').getTime()).filter(t=>!isNaN(t));
+    const intervals=dts.slice(1).map((t,i)=>t-dts[i]);
+    const sorted=[...intervals].sort((a,b)=>a-b);
+    const medInterval=sorted[Math.floor(sorted.length/2)];
+    const threshold=medInterval*2.5;
+    return intervals.map((gap,i)=>({
+      after:dates[i], before:dates[i+1],
+      gap_days:Math.round(gap/86400000),
+      expected_days:Math.round(medInterval/86400000),
+      is_gap:gap>threshold
+    })).filter(g=>g.is_gap);
+  }
+
+  // ── Detect if a column is a ratio/rate (should average not sum) ──────────
+  function isRatioCol(name, values) {
+    // Name heuristics
+    if(/rate|ratio|pct|percent|margin|share|roas|roi|ctr|cvr|engagement|efficiency|density|probability|avg|average|mean|per_/i.test(name)) return true;
+    // Value range heuristic: if >80% of values fall in [0,1] it's a proportion
+    const inZeroOne=values.filter(v=>typeof v==='number'&&!isNaN(v)&&v>=0&&v<=1).length;
+    const inZeroHundred=values.filter(v=>typeof v==='number'&&!isNaN(v)&&v>=0&&v<=100).length;
+    const n=values.filter(v=>typeof v==='number'&&!isNaN(v)).length;
+    if(n>0 && inZeroOne/n>0.8) return true;
+    // If max value <=1 and min >=0 it's almost certainly a proportion
+    const nums=values.filter(v=>typeof v==='number'&&!isNaN(v));
+    if(nums.length>0 && Math.max(...nums)<=1 && Math.min(...nums)>=0) return true;
+    return false;
+  }
+
+  // ── Full data quality report ──────────────────────────────────────────────
+  function dataQuality(data, metricCol, dateCol, numCols) {
+    const issues=[];
+    const warnings=[];
+    const info=[];
+    const colMeta={};
+
+    const toNum=v=>typeof v==='number'?v:parseFloat(v);
+
+    // 1. Sample size
+    if(data.length<10) issues.push({code:'TOO_FEW_ROWS',msg:`Only ${data.length} rows — need at least 10 for meaningful analysis.`});
+    else if(data.length<30) warnings.push({code:'SMALL_SAMPLE',msg:`${data.length} rows is a small sample. Results will have wide confidence intervals.`});
+
+    // 2. Metric column checks
+    const metricVals=data.map(r=>toNum(r[metricCol])).filter(v=>!isNaN(v));
+    const missingMetric=data.length-metricVals.length;
+    if(missingMetric/data.length>0.3) issues.push({code:'HIGH_MISSING',msg:`${(missingMetric/data.length*100).toFixed(0)}% of rows missing values in "${metricCol}". Results may be misleading.`});
+    else if(missingMetric>0) warnings.push({code:'SOME_MISSING',msg:`${missingMetric} rows (${(missingMetric/data.length*100).toFixed(0)}%) have missing values in "${metricCol}" and will be skipped.`});
+
+    // 3. Zero variance / near-constant
+    if(metricVals.length>0){
+      const cvVal=cv(metricVals);
+      if(cvVal<0.001) issues.push({code:'ZERO_VARIANCE',msg:`"${metricCol}" is nearly constant (CV=${cvVal.toFixed(4)}). There is no variation to analyze.`});
+      else if(cvVal<0.05) warnings.push({code:'LOW_VARIANCE',msg:`"${metricCol}" has very low variation (CV=${cvVal.toFixed(3)}). Trend and correlation results may be unreliable.`});
+    }
+
+    // 4. Extreme outliers (z > 4)
+    if(metricVals.length>4){
+      const m=mean(metricVals), s=stddevPop(metricVals);
+      const extremes=metricVals.filter(v=>Math.abs((v-m)/s)>4);
+      if(extremes.length>0) warnings.push({code:'EXTREME_OUTLIERS',msg:`${extremes.length} extreme outlier${extremes.length>1?'s':''} detected (|z| > 4) in "${metricCol}". These may distort regression and correlation results.`});
+    }
+
+    // 5. Rate/ratio columns being summed
+    const ratioColsFound=[];
+    numCols.forEach(col=>{
+      const vals=data.map(r=>toNum(r[col])).filter(v=>!isNaN(v));
+      const isRatio=isRatioCol(col,vals);
+      colMeta[col]={isRatio,missingPct:missingRate(data,col)*100};
+      if(isRatio) ratioColsFound.push(col);
+    });
+    if(ratioColsFound.length>0) info.push({code:'RATIO_COLS_AVERAGED',msg:`${ratioColsFound.length} rate/ratio column${ratioColsFound.length>1?'s':''} detected (${ratioColsFound.slice(0,3).join(', ')}${ratioColsFound.length>3?'…':''}). These will be averaged instead of summed during aggregation.`,cols:ratioColsFound});
+
+    // 6. Predictor collinearity check (if we have multiple metrics)
+    if(numCols.length>=2 && metricVals.length>=10){
+      const predVals=numCols.slice(0,5).map(c=>data.map(r=>toNum(r[c])).filter(v=>!isNaN(v)));
+      // Only check if all same length
+      if(predVals.every(v=>v.length===predVals[0].length)&&predVals[0].length>=10){
+        try {
+          const vifs=vif(predVals);
+          const highVIF=numCols.slice(0,5).filter((_,i)=>vifs[i]>10);
+          if(highVIF.length>0) warnings.push({code:'MULTICOLLINEARITY',msg:`High multicollinearity detected in: ${highVIF.join(', ')} (VIF > 10). OLS coefficients for these predictors will be unreliable and may be excluded.`});
+        } catch(e) {}
+      }
+    }
+
+    return {issues,warnings,info,colMeta,ok:issues.length===0};
+  }
+
+  // ── Median (standalone helper) ────────────────────────────────────────────
+  function median(a) {
+    const s=[...a].sort((x,y)=>x-y);
+    const mid=Math.floor(s.length/2);
+    return s.length%2===0?(s[mid-1]+s[mid])/2:s[mid];
+  }
+
+  // ── MAD (Median Absolute Deviation, scaled to normal equiv) ──────────────
+  function mad(a) {
+    const med=median(a);
+    const devs=a.map(v=>Math.abs(v-med));
+    return median(devs)*1.4826; // scale constant for normal distribution
+  }
+
+  // ── Trimmed mean (default 10% each end) ──────────────────────────────────
+  function trimmedMean(a, p=0.1) {
+    const s=[...a].sort((x,y)=>x-y);
+    const cut=Math.floor(s.length*p);
+    const trimmed=s.slice(cut, s.length-cut);
+    if(!trimmed.length) return mean(a);
+    return trimmed.reduce((s,v)=>s+v,0)/trimmed.length;
+  }
+
+  // ── Lag-1 autocorrelation (persistence/smoothness) ───────────────────────
+  function lag1Autocorr(a) {
+    if(a.length<3) return null;
+    const m=mean(a);
+    const denom=a.reduce((s,v)=>s+(v-m)**2,0);
+    if(denom===0) return null;
+    const numer=a.slice(1).reduce((s,v,i)=>s+(v-m)*(a[i]-m),0);
+    return numer/denom;
+  }
+
+  // ── Winsorize (clip at p-th and (1-p)-th percentile) ─────────────────────
+  function winsorize(a, p=0.05) {
+    const s=[...a].sort((x,y)=>x-y);
+    const lo=s[Math.floor(s.length*p)];
+    const hi=s[Math.floor(s.length*(1-p))];
+    return a.map(v=>Math.min(Math.max(v,lo),hi));
+  }
+
+  return {mean,stddev,stddevPop,median,mad,trimmedMean,lag1Autocorr,winsorize,linReg,pearson,olsMultiple,seasonalIndex,anomalies,periodGrowth,detectGrain,describe,skewness,kurtosis,histogram,cv,vif,timeGaps,isRatioCol,dataQuality,tpval};
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ANALYSIS RUNNER
+// ═══════════════════════════════════════════════════════════════════════════
+let parsedData=null, detectedCols=null;
+const ctx={goal:null,comp:'yoy',metric:'',focus:'',use_ga:true, grain:'auto'};
+let lastRunPayload = null; 
+
+document.getElementById('drop-zone').addEventListener('dragover',e=>{e.preventDefault();e.currentTarget.classList.add('drag');});
+document.getElementById('drop-zone').addEventListener('dragleave',e=>e.currentTarget.classList.remove('drag'));
+document.getElementById('drop-zone').addEventListener('drop',e=>{e.preventDefault();e.currentTarget.classList.remove('drag');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
+document.getElementById('fi').addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
+
+function handleFile(f){Papa.parse(f,{header:true,dynamicTyping:true,skipEmptyLines:true,worker:true,complete:r=>{ingestData(r.data,r.meta.fields,f.name);}});}
+function loadPaste(){const raw=document.getElementById('paste-area').value.trim();if(!raw)return;Papa.parse(raw,{header:true,dynamicTyping:true,skipEmptyLines:true,worker:true,complete:r=>{ingestData(r.data,r.meta.fields,'pasted data');}});}
+function loadDemo(){const csv=`date,sessions,bookings,revenue,avg_fare,conversion_rate\n2024-01-01,3126610,58707,983199,16.74,1.88\n2024-02-01,3132901,60163,1042608,17.33,1.92\n2024-03-01,3498200,71244,1287600,18.07,2.04\n2024-04-01,3621800,74892,1398200,18.67,2.07\n2024-05-01,3912400,82341,1587300,19.28,2.11\n2024-06-01,4103700,89204,1743800,19.55,2.17\n2024-07-01,4487200,98731,1952400,19.78,2.20\n2024-08-01,4312600,91842,1819300,19.81,2.13\n2024-09-01,3876500,79234,1563200,19.73,2.04\n2024-10-01,3654100,73418,1441700,19.63,2.01\n2024-11-01,3421800,67892,1312400,19.33,1.98\n2024-12-01,3698400,76341,1498700,19.63,2.06\n2025-01-01,3289100,61842,1071300,17.32,1.88\n2025-02-01,3341700,63918,1118400,17.50,1.91\n2025-03-01,3712400,74981,1362100,18.17,2.02\n2025-04-01,3834600,79104,1462800,18.49,2.06\n2025-05-01,4098700,86732,1673400,19.29,2.12\n2025-06-01,4287300,93418,1831200,19.60,2.18\n2025-07-01,4601400,102847,2041900,19.85,2.24`;
+Papa.parse(csv,{header:true,dynamicTyping:true,skipEmptyLines:true,complete:r=>{ingestData(r.data,r.meta.fields,'skiplagged_demo_19mo.csv');}});}
+
+function ingestData(rawData,fields,name){
+  const data = rawData.filter(row=>{
+    const vals = Object.values(row);
+    const hasData = vals.some(v=>v!==null&&v!==''&&v!==undefined);
+    if(!hasData) return false;
+    const allComment = vals.every(v=>v===null||v===''||String(v).startsWith('#'));
+    if(allComment) return false;
+    if(fields&&fields.includes(String(vals[0]))) return false;
+    return true;
+  });
+  parsedData=data;
+  detectedCols=inferCols(data,fields);
+  showSchema(name,data.length);
+  show('sec-ctx');
+  document.getElementById('run-btn').disabled=!detectedCols.some(c=>c.role==='metric');
+}
+
+function inferCols(data,fields){
+  if(!fields||!data.length) return [];
+  return fields.map(f=>{
+    const vals=data.map(r=>r[f]).filter(v=>v!=null&&v!=='');
+    const nums=vals.filter(v=>typeof v==='number');
+    const dts=vals.filter(v=>typeof v==='string'&&/^\d{4}/.test(v));
+    const yyyymmdd=nums.filter(v=>v>=19000101&&v<=20991231&&Number.isInteger(v)&&String(v).length===8);
+    let type='text';
+    if(yyyymmdd.length/vals.length>.7) type='date';
+    else if(nums.length/vals.length>.7) type='numeric';
+    else if(dts.length/vals.length>.5) type='date';
+
+    // Dim detection: id/label/categorical columns
+    const DIM_PATTERN = /^(id|key|code|name|label|group|channel|platform|category|segment|type|source|medium|campaign|device|region|country|market|audience|cohort|tier|bucket|brand|product|sku|vendor|partner|property|app|site|placement|creative|ad_|utm_)/i;
+    // Rate detection for auto-labeling
+    const numVals=nums.map(v=>v);
+    const isRate=Stats.isRatioCol(f,numVals);
+
+    let role='metric';
+    if(type==='date') role='date';
+    else if(DIM_PATTERN.test(f)) role='dim';
+    else if(type==='text') role='dim';
+    // Text columns with low cardinality are also dims (e.g. "Blog", "Referral")
+    else if(type==='text'){
+      const unique=new Set(vals.map(v=>String(v)));
+      if(unique.size<vals.length*0.5) role='dim';
+    }
+
+    return {name:f,type,sample:vals[0],role,isRate};
+  });
+}
+
+// Determine best display label for the dimension column (generalize "channel")
+function getDimLabel(colName){
+  if(!colName) return 'Segment';
+  const n=colName.toLowerCase();
+  if(n.includes('channel')) return 'Channel';
+  if(n.includes('platform')) return 'Platform';
+  if(n.includes('source')) return 'Source';
+  if(n.includes('medium')) return 'Medium';
+  if(n.includes('campaign')) return 'Campaign';
+  if(n.includes('device')) return 'Device';
+  if(n.includes('region')||n.includes('country')||n.includes('market')) return 'Region';
+  if(n.includes('product')||n.includes('sku')) return 'Product';
+  if(n.includes('cohort')) return 'Cohort';
+  if(n.includes('tier')) return 'Tier';
+  if(n.includes('audience')) return 'Audience';
+  // Fallback: Title-case the column name (strip underscores/camelCase)
+  return colName.replace(/[_-]/g,' ').replace(/([A-Z])/g,' $1').trim()
+    .split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(' ');
+}
+
+function showSchema(filename,rows){
+  const sw=document.getElementById('schema-wrap');
+  document.getElementById('file-chip-el').innerHTML=`<div class="file-chip">✓ ${esc(filename)}</div>`;
+  document.getElementById('row-count').textContent=`${rows.toLocaleString()} rows · ${detectedCols.length} columns detected — click to set each column's role`;
+  renderColPicker();
+  sw.classList.remove('hidden');
+}
+
+function renderColPicker(){
+  const roleLabel={metric:'Outcome metric',date:'Date / time',dim:'Dimension',ignore:'Ignore'};
+  const roleClass={metric:'role-metric',date:'role-date',dim:'role-dim',ignore:'role-ignore'};
+  document.getElementById('schema-cols').innerHTML=detectedCols.map((c,ci)=>`
+    <div class="col-chip ${c.role==='metric'?'is-metric':c.role==='date'?'is-date':c.role==='ignore'?'is-ignore':''}" id="chip-${ci}">
+      <div class="col-role ${roleClass[c.role]||'role-dim'}">${roleLabel[c.role]||'Dimension'}</div>
+      <div class="sc-col">${esc(c.name)}</div>
+      <div class="sc-sample">${esc(String(c.sample??'—').substring(0,18))}</div>
+      <div class="col-actions">
+        <button class="col-act ${c.role==='metric'?'active-metric':''}" onclick="setRole(${ci},'metric')">metric</button>
+        <button class="col-act ${c.role==='date'?'active-date':''}" onclick="setRole(${ci},'date')">date</button>
+        <button class="col-act ${c.role==='dim'?'':''}" onclick="setRole(${ci},'dim')">dimension</button>
+        <button class="col-act ${c.role==='ignore'?'active-ignore':''}" onclick="setRole(${ci},'ignore')">ignore</button>
+      </div>
+    </div>`).join('');
+}
+
+function setRole(ci,role){
+  if(role==='date') detectedCols.forEach((c,i)=>{ if(i!==ci&&c.role==='date') c.role='dim'; });
+  detectedCols[ci].role=role;
+  renderColPicker();
+  const hasMetric=detectedCols.some(c=>c.role==='metric');
+  document.getElementById('run-btn').disabled=!hasMetric;
+}
+
+function pick(el,group,val){
+  document.querySelectorAll(`.q-opt`).forEach(o=>{ if(o.getAttribute('data-v')&&o.parentElement===el.parentElement) o.classList.remove('on'); });
+  el.classList.add('on');
+  if(group==='goal') ctx.goal=val;
+  else if(group==='comp') ctx.comp=val;
+  else if(group==='grain') ctx.grain=val;
+}
+
+async function runAnalysis(){
+  const yieldFrame = () => new Promise(r => setTimeout(r, 0));
+  ctx.focus=document.getElementById('focus-inp').value;
+  ctx.use_ga = document.getElementById('use-ga-ann').checked;
+  if(!ctx.comp) ctx.comp='yoy';
+  if(!parsedData||!parsedData.length){alert('Upload a dataset first.');return;}
+  show('sec-run');
+
+  const steps=['Validating data quality','Detecting structure & aggregating','Computing trend & regression','Calculating seasonality & distribution','Running correlations'];
+  const prog=document.getElementById('prog-list');
+  prog.innerHTML=steps.map((s,i)=>`<div class="prog-item" id="pi${i}"><div class="prog-dot"></div>${s}</div>`).join('');
+  let si=0;
+  const adv=()=>{
+    if(si>0)document.getElementById(`pi${si-1}`)?.classList.replace('act','done');
+    const el=document.getElementById(`pi${si}`);
+    if(el){el.classList.add('act');document.getElementById('run-lbl').textContent=el.textContent.trim();}
+    si++;
+  };
+  adv();
+
+  try {
+    const metricCols=detectedCols.filter(c=>c.role==='metric').map(c=>c.name);
+    const dateCols=detectedCols.filter(c=>c.role==='date'||c.type==='date'||c.name.toLowerCase()==='date').map(c=>c.name);
+    const dateCol=dateCols[0]||null;
+    const metricCol=(metricCols.includes(ctx.metric)?ctx.metric:null)||metricCols[0]||null;
+    if(!metricCol) throw new Error('No metric column selected. Use the column picker to mark at least one column as a metric.');
+    const numCols=metricCols.filter(c=>c!==metricCol);
+
+    const toNum=v=>typeof v==='number'?v:parseFloat(v);
+
+    // ── Data quality check ────────────────────────────────────────────────
+    const dqReport = Stats.dataQuality(parsedData, metricCol, dateCol, numCols);
+    // Block on hard errors
+    if(!dqReport.ok){
+      throw new Error('Data quality issue: ' + dqReport.issues.map(i=>i.msg).join(' | '));
+    }
+
+    await sleep(500); adv();
+
+    let Y, dates, T, grain;
+
+    if (dateCol) {
+      const rawSample = parsedData.slice(0,30).map(row=>normalizeDate(String(row[dateCol]||'').trim())).filter(Boolean);
+      const detectedRawGrain = Stats.detectGrain(rawSample);
+      grain = ctx.grain === 'auto' ? detectedRawGrain : ctx.grain;
+
+      function bucketKey(rawDate) {
+        const s = String(rawDate||'').trim();
+        if(!s) return null;
+        const n = normalizeDate(s);
+        if(!n) return null;
+        if(grain==='month') return n.slice(0,7);
+        if(grain==='week') {
+          const dt=new Date(n.slice(0,10)+'T00:00:00Z');
+          const jan4=new Date(Date.UTC(dt.getUTCFullYear(),0,4));
+          const wk=Math.ceil(((dt-jan4)/86400000+jan4.getUTCDay()+1)/7);
+          return `${dt.getUTCFullYear()}-W${String(wk).padStart(2,'0')}`;
+        }
+        return n.slice(0,10); 
+      }
+
+      const bucketMetric={}, bucketCols={};
+      numCols.forEach(c=>{ bucketCols[c]={}; });
+      // Mark which cols are ratios (need averaging not summing)
+      const ratioColSet = new Set(
+        [...metricCols, ...numCols].filter(c => {
+          const colDef = detectedCols.find(dc=>dc.name===c);
+          if(colDef?.isRate) return true;
+          const vals = parsedData.slice(0,50).map(r=>toNum(r[c])).filter(v=>!isNaN(v));
+          return Stats.isRatioCol(c, vals);
+        })
+      );
+      // For ratio cols we need sum of (value*weight) and sum of weights to compute weighted avg
+      const bucketRatioCounts={};
+      numCols.forEach(c=>{ if(ratioColSet.has(c)) bucketRatioCounts[c]={}; });
+      const metricIsRatio = ratioColSet.has(metricCol);
+      const bucketMetricCount={};
+
+      parsedData.forEach(row=>{
+        const bk=bucketKey(row[dateCol]);
+        if(!bk) return;
+        const v=toNum(row[metricCol]);
+        if(isNaN(v)) return;
+        bucketMetric[bk]=(bucketMetric[bk]||0)+v;
+        if(metricIsRatio) bucketMetricCount[bk]=(bucketMetricCount[bk]||0)+1;
+        numCols.forEach(c=>{
+          const cv=toNum(row[c]);
+          if(!isNaN(cv)){
+            bucketCols[c][bk]=(bucketCols[c][bk]||0)+cv;
+            if(ratioColSet.has(c)) bucketRatioCounts[c][bk]=(bucketRatioCounts[c][bk]||0)+1;
+          }
+        });
+      });
+      // Convert ratio col sums to averages
+      numCols.forEach(c=>{
+        if(ratioColSet.has(c)){
+          Object.keys(bucketCols[c]).forEach(bk=>{
+            if(bucketRatioCounts[c][bk]>0) bucketCols[c][bk]/=bucketRatioCounts[c][bk];
+          });
+        }
+      });
+      if(metricIsRatio){
+        Object.keys(bucketMetric).forEach(bk=>{
+          if(bucketMetricCount[bk]>0) bucketMetric[bk]/=bucketMetricCount[bk];
+        });
+      }
+
+      dates=Object.keys(bucketMetric).sort();
+      if(dates.length<3) throw new Error(`Not enough distinct ${grain} periods (need 3+). Found: ${dates.length}`);
+      Y=dates.map(d=>bucketMetric[d]);
+      T=Y.map((_,i)=>i);
+      window._aggCols={};
+      numCols.forEach(c=>{ window._aggCols[c]=dates.map(d=>bucketCols[c][d]||0); });
+
+    } else {
+      grain='unknown';
+      // Define ratioColSet for no-date path too
+      const ratioColSet = new Set(
+        [...metricCols, ...numCols].filter(c => {
+          const colDef = detectedCols.find(dc=>dc.name===c);
+          if(colDef?.isRate) return true;
+          const vals = parsedData.slice(0,50).map(r=>toNum(r[c])).filter(v=>!isNaN(v));
+          return Stats.isRatioCol(c, vals);
+        })
+      );
+      const completeIdx=parsedData.map((_,i)=>i).filter(i=>!isNaN(toNum(parsedData[i][metricCol])));
+      if(completeIdx.length<3) throw new Error('Not enough valid rows (need at least 3).');
+      Y=completeIdx.map(i=>toNum(parsedData[i][metricCol]));
+      dates=Y.map((_,i)=>`T${i+1}`);
+      T=Y.map((_,i)=>i);
+      window._aggCols={};
+      numCols.forEach(c=>{ window._aggCols[c]=completeIdx.map(i=>{const v=toNum(parsedData[i][c]);return isNaN(v)?0:v;}); });
+    }
+
+    await sleep(600); adv();
+
+    let channel_breakdown = null;
+    if (ctx.goal === 'channels') {
+      const dimCols = detectedCols.filter(c => c.role === 'dim').map(c => c.name);
+      // Pick the best dimension column — prefer explicitly segmenting cols
+      let targetDim = dimCols.find(c => /channel|platform|source|medium|campaign|device|segment|cohort|audience/i.test(c)) || dimCols[0];
+      
+      if (targetDim) {
+        const chTotals = {};
+        const chTime = {};
+        let grandTotal = 0;
+
+        parsedData.forEach(row => {
+          const k = String(row[targetDim] || 'Unknown').trim();
+          const v = toNum(row[metricCol]);
+          if (!isNaN(v)) {
+            chTotals[k] = (chTotals[k] || 0) + v;
+            grandTotal += v;
+            
+            if (dateCol) {
+               const bk = grain === 'month' ? normalizeDate(String(row[dateCol]||'')).slice(0,7) 
+                          : grain === 'week' ? (() => {
+                                const n = normalizeDate(String(row[dateCol]||''));
+                                if(!n) return null;
+                                const dt=new Date(n.slice(0,10)+'T00:00:00Z');
+                                const jan4=new Date(Date.UTC(dt.getUTCFullYear(),0,4));
+                                const wk=Math.ceil(((dt-jan4)/86400000+jan4.getUTCDay()+1)/7);
+                                return `${dt.getUTCFullYear()}-W${String(wk).padStart(2,'0')}`;
+                             })()
+                          : normalizeDate(String(row[dateCol]||'')).slice(0,10);
+
+               if (bk) {
+                 if (!chTime[bk]) chTime[bk] = {};
+                 chTime[bk][k] = (chTime[bk][k] || 0) + v;
+               }
+            }
+          }
+        });
+        
+        const sortedCh = Object.entries(chTotals).sort((a,b) => b[1] - a[1]);
+        const top5 = sortedCh.slice(0, 5);
+        
+        if (grandTotal > 0 && sortedCh.length > 0) {
+          const top5Names = top5.map(x => x[0]);
+          let timeline = null;
+          let trend_summary = null;
+          let channel_growth = [];
+
+          if (dateCol && dates.length > 1) {
+             const tData = top5Names.map(name => ({
+                label: name,
+                data: dates.map(d => (chTime[d] && chTime[d][name]) ? chTime[d][name] : 0)
+             }));
+             if (sortedCh.length > 5) {
+                tData.push({
+                   label: 'Other',
+                   data: dates.map(d => {
+                      if(!chTime[d]) return 0;
+                      let oSum = 0;
+                      for(let chK in chTime[d]) {
+                         if(!top5Names.includes(chK)) oSum += chTime[d][chK];
+                      }
+                      return oSum;
+                   })
+                });
+             }
+             timeline = { labels: dates, datasets: tData };
+             
+             trend_summary = tData.map(ds => ({
+                name: ds.label,
+                first_period_vol: +(ds.data[0].toFixed(2)),
+                last_period_vol: +(ds.data[ds.data.length - 1].toFixed(2))
+             }));
+
+             const smoothN = Math.max(1, Math.floor(dates.length / 4));
+             const validChannels = Object.entries(chTotals).filter(x => x[1] > grandTotal * 0.01).map(x => x[0]);
+             validChannels.forEach(ch => {
+                const firstVol = dates.slice(0, smoothN).reduce((sum, d) => sum + (chTime[d]?.[ch] || 0), 0);
+                const lastVol = dates.slice(-smoothN).reduce((sum, d) => sum + (chTime[d]?.[ch] || 0), 0);
+                if (firstVol > 0) {
+                   const pct = ((lastVol - firstVol) / firstVol) * 100;
+                   channel_growth.push({ name: ch, pct: +pct.toFixed(1), abs_diff: lastVol - firstVol });
+                }
+             });
+             channel_growth.sort((a,b) => b.pct - a.pct);
+          }
+
+          channel_breakdown = {
+            dimension_name: targetDim,
+            total_volume: +grandTotal.toFixed(2),
+            data: top5.map(([name, val]) => ({
+              name,
+              value: +val.toFixed(2),
+              share_pct: +((val / grandTotal) * 100).toFixed(1)
+            })),
+            timeline,
+            trend_summary,
+            growth_ranking: channel_growth
+          };
+        }
+      }
+    }
+
+    const trend=Stats.linReg(T,Y);
+    const pearsonPairs=numCols.filter(c=>c!==metricCol).slice(0,5).map(c=>{
+      const X=window._aggCols[c];
+      if(!X||X.length!==Y.length) return null;
+      const p=Stats.pearson(X,Y);
+      return {name:c,r:p.r,p:p.pval,data:X};
+    }).filter(Boolean).sort((a,b)=>Math.abs(b.r)-Math.abs(a.r));
+
+    const strongPredictors=pearsonPairs.filter(p=>Math.abs(p.r)>0.1).slice(0,2);
+    
+    // --- OLS MATRIX SETUP ---
+    let olsMatrix = [...strongPredictors.map(p=>p.data), T];
+    let olsNames = [...strongPredictors.map(p=>p.name), 'trend'];
+
+    if (grain === 'day' && Y.length > 14) {
+      const dowDummies = [1, 2, 3, 4, 5, 6].map(d => ({
+        name: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][d],
+        data: dates.map(dt => (new Date(dt + 'T00:00:00Z').getUTCDay() + 6) % 7 === d ? 1 : 0)
+      }));
+      olsMatrix.push(...dowDummies.map(d=>d.data));
+      olsNames.push(...dowDummies.map(d=>d.name));
+    }
+
+    const ols = olsMatrix.length > 0 ? Stats.olsMultiple(olsMatrix, Y) : null;
+
+    // --- SEASONALITY SETUP ---
+    const si_data=(dateCol&&grain==='month')?Stats.seasonalIndex(dates,Y):null;
+    
+    let dow_data = null;
+    if (dateCol && grain === 'day') {
+      const buckets = [0,0,0,0,0,0,0];
+      const counts = [0,0,0,0,0,0,0];
+      dates.forEach((d, i) => {
+        const day = (new Date(d + 'T00:00:00Z').getUTCDay() + 6) % 7; 
+        buckets[day] += Y[i];
+        counts[day]++;
+      });
+      const validAvg = Stats.mean(Y);
+      dow_data = buckets.map((b,i) => counts[i] && validAvg ? (b/counts[i])/validAvg : 1);
+    }
+
+    const anom=Stats.anomalies(Y,dates);
+    // Apply winsorization if user requested it
+    if (ctx.winsorize) {
+      const winsorized = Stats.winsorize(Y, 0.05);
+      for (let i = 0; i < Y.length; i++) Y[i] = winsorized[i];
+      // Also winsorize all other metric columns
+      if (window._aggCols) {
+        numCols.forEach(col => {
+          if (col !== metricCol && window._aggCols[col] && window._aggCols[col].length > 0) {
+            const wc = Stats.winsorize(window._aggCols[col], 0.05);
+            for (let i = 0; i < wc.length; i++) window._aggCols[col][i] = wc[i];
+          }
+        });
+      }
+    }
+    const compMode = ctx.comp==='auto' ? (grain==='day'?'wow':grain==='week'?'wow':'yoy') : (ctx.comp||'yoy');
+    const period_data=dateCol?Stats.periodGrowth(dates,Y,compMode,grain):[];
+    const yoy_data=period_data;
+    // Multi-grain PoP for "What's changed?" objective
+    const pop_grains = (ctx.goal === 'pop' && dateCol) ? {
+      yoy: Stats.periodGrowth(dates, Y, 'yoy', grain),
+      mom: Stats.periodGrowth(dates, Y, 'mom', grain),
+      wow: Stats.periodGrowth(dates, Y, 'wow', grain)
+    } : null;
+
+    // Cross-sectional high vs low comparison for "What's changed?" (non-time or supplement)
+    let cross_section = null;
+    if (ctx.goal === 'pop') {
+      const n = Y.length;
+      const q = Math.floor(n / 4);
+      if (q >= 5 && numCols.length > 1) {
+        const sortedByMetric = [...Array(n).keys()].sort((a,b) => Y[a] - Y[b]);
+        const bottomQ = sortedByMetric.slice(0, q);
+        const topQ    = sortedByMetric.slice(-q);
+        const comparisons = [];
+        numCols.filter(c => c !== metricCol).forEach(col => {
+          const colVals = window._aggCols[col] || [];
+          if (!colVals.length) return;
+          const bMean = bottomQ.reduce((s,i) => s + (colVals[i]||0), 0) / q;
+          const tMean = topQ.reduce((s,i)    => s + (colVals[i]||0), 0) / q;
+          const diffPct = Math.abs(bMean) > 0.0001 ? (tMean - bMean) / Math.abs(bMean) * 100 : null;
+          comparisons.push({ col, topMean: tMean, bottomMean: bMean, diffPct });
+        });
+        comparisons.sort((a,b) => Math.abs(b.diffPct??0) - Math.abs(a.diffPct??0));
+        cross_section = {
+          comparisons: comparisons.slice(0, 10),
+          q,
+          topMetricMean:    topQ.reduce((s,i)    => s + Y[i], 0) / q,
+          bottomMetricMean: bottomQ.reduce((s,i) => s + Y[i], 0) / q,
+        };
+      }
+    }
+    const desc=Stats.describe(Y);
+    const skew=Stats.skewness(Y);
+    const kurt=Stats.kurtosis(Y);
+    const hist=Stats.histogram(Y);
+    const gaps=dateCol?Stats.timeGaps(dates):[];
+    // Per-metric-col descriptive stats (all marked metric cols, not just primary)
+    const allMetricDesc = {};
+    metricCols.forEach(col=>{
+      const colVals = col===metricCol ? Y : (window._aggCols[col]||[]);
+      if(colVals.length>0){
+        allMetricDesc[col]={
+          desc:Stats.describe(colVals),
+          skewness:Stats.skewness(colVals),
+          kurtosis:Stats.kurtosis(colVals),
+          hist:Stats.histogram(colVals),
+          isRatio:(typeof ratioColSet!=='undefined'&&ratioColSet?.has(col))||false
+        };
+      }
+    });
+
+    await sleep(200); adv(); await yieldFrame(); await sleep(200); adv();
+
+    const siEntries=si_data?Object.entries(si_data).sort((a,b)=>b[1]-a[1]):[];
+    
+    const statsPayload={
+      metric:metricCol,
+      n:Y.length,
+      date_range:dateCol?[dates[0],dates[dates.length-1]]:null,
+      trend:{slope:+((trend.slope??0).toFixed(2)),r2:+((trend.r2??0).toFixed(4)),p_value:+((trend.pval??1).toFixed(4)),direction:(trend.slope??0)>0?'increasing':'decreasing'},
+      seasonal:si_data&&siEntries.length?{peak:siEntries[0],trough:siEntries[siEntries.length-1],amplitude:+(((siEntries[0][1]-siEntries[siEntries.length-1][1])/2*100).toFixed(1))}:null,
+      weekly_seasonality: dow_data ? dow_data.map(v => +(v*100).toFixed(1)) : null,
+      correlations:pearsonPairs.slice(0,4).map(p=>({name:p.name,r:+((p.r??0).toFixed(4)),p:+((p.p??1).toFixed(5))})),
+      ols:ols?{r2:+ols.r2.toFixed(4),adj_r2:+ols.adjR2.toFixed(4),predictors:olsNames.map((name,i)=>({name:name,coeff:+(ols.coeffs[i+1]??0).toFixed(4),p_value:+(ols.pvals[i+1]??1).toFixed(5)}))}:null,
+      anomalies:anom.outliers.map(o=>({date:o.date,value:+o.value.toFixed(0),z:o.z,direction:o.direction})),
+      stats:{
+        mean:+((desc.mean??0).toFixed(2)),std:+((desc.std??0).toFixed(2)),
+        min:+((desc.min??0).toFixed(2)),max:+((desc.max??0).toFixed(2)),
+        median:+((desc.median??0).toFixed(2)),q1:+((desc.q1??0).toFixed(2)),q3:+((desc.q3??0).toFixed(2)),
+        n:desc.n,
+        skewness:+(skew.toFixed(3)),kurtosis:+(kurt.toFixed(3)),
+        normality_label:Math.abs(skew)<0.5&&Math.abs(kurt)<1?'roughly normal':Math.abs(skew)>1?'highly skewed':'moderately skewed'
+      },
+      data_quality:{
+        warnings:dqReport.warnings.map(w=>w.msg),
+        info:dqReport.info.map(i=>i.msg),
+        ratio_cols:dqReport.info.find(i=>i.code==='RATIO_COLS_AVERAGED')?.cols||[],
+        time_gaps:gaps.map(g=>({after:g.after,before:g.before,gap_days:g.gap_days}))
+      },
+      yoy:yoy_data.slice(-8).map(y=>({date:y.date,pct:+((y.pct??y.yoy??0).toFixed(2))})),
+      goal:ctx.goal||'general',
+      channel_breakdown: channel_breakdown ? {
+         dimension_name: channel_breakdown.dimension_name,
+         data: channel_breakdown.data,
+         trend_summary: channel_breakdown.trend_summary,
+         growth_ranking: channel_breakdown.growth_ranking
+      } : null,
+      grain,
+      comp_mode:compMode,
+      ga_annotations: ctx.use_ga ? GA_ANNOTATIONS : null,
+      context:`Skiplagged.com — flight search with hidden-city ticketing. We are a marketplace and do not set prices; we are subject to macro airline market forces. Data grain: ${grain}. Comparison mode: ${compMode}. ${ctx.focus||''}`
+    };
+
+    adv();
+
+    // Render local stats immediately — no API key needed
+    const fullPayload = {stats:statsPayload,narrative:null,Y,dates,T,trend,si_data,dow_data,pearsonPairs,ols,olsNames,anom,yoy_data,pop_grains,cross_section,channel_breakdown,metricCol,desc,dateCol,grain,compMode,skew,kurt,hist,gaps,allMetricDesc,dqReport};
+    lastRunPayload = fullPayload;
+    renderResults(fullPayload);
+
+    // Async AI narrative — non-blocking, patches in after render if key is available
+    if (getKey()) {
+      (async () => {
+        // Show loading state in narrative placeholders
+        document.querySelectorAll('[data-ns]').forEach(el => {
+          el.style.opacity = '0.45';
+          el.style.fontStyle = 'italic';
+        });
+        try {
+          const narrative = await callClaude(statsPayload);
+          lastRunPayload.narrative = narrative;
+          patchNarrative(narrative);
+        } catch(e) {
+          document.querySelectorAll('[data-ns]').forEach(el => {
+            el.style.opacity = '0.5';
+            el.style.fontStyle = 'italic';
+            if (!el.textContent.trim()) el.textContent = 'AI narrative unavailable.';
+          });
+        }
+      })();
+    }
+
+  } catch(e){
+    renderError(e.message||String(e));
+  }
+}
+
+function patchNarrative(narrative) {
+  if (!narrative) return;
+  // Headline
+  const hl = document.getElementById('r-headline');
+  if (hl && narrative.headline) hl.textContent = narrative.headline;
+  // Meta tag
+  const meta = document.getElementById('r-meta-ai');
+  if (meta) meta.textContent = 'Local stats + Claude narrative';
+  // Module text patches
+  (narrative.modules || []).forEach(mod => {
+    const plainEl = document.querySelector(`[data-ns="${mod.id}-plain"]`);
+    if (plainEl && mod.plain_english) {
+      plainEl.textContent = mod.plain_english;
+      plainEl.style.opacity = '1';
+      plainEl.style.fontStyle = 'normal';
+    }
+    const actionEl = document.querySelector(`[data-ns="${mod.id}-action"]`);
+    if (actionEl && mod.what_now) {
+      actionEl.textContent = mod.what_now;
+      actionEl.style.opacity = '1';
+      actionEl.style.fontStyle = 'normal';
+    }
+  });
+  // Clear loading state on any remaining placeholders
+  document.querySelectorAll('[data-ns]').forEach(el => {
+    if (el.style.opacity === '0.45') { el.style.opacity = '1'; el.style.fontStyle = 'normal'; }
+  });
+}
+
+async function callClaude(statsPayload){
+  
+  let dataDictionaryContext = "";
+  let relevantKeys = [statsPayload.metric];
+  if (statsPayload.correlations) {
+    relevantKeys = relevantKeys.concat(statsPayload.correlations.map(c => c.name));
+  }
+  
+  const foundDefs = relevantKeys.filter(k => DATA_DICTIONARY[k]).map(k => `- ${k}: ${DATA_DICTIONARY[k].definition}`);
+  
+  if (foundDefs.length > 0) {
+    dataDictionaryContext = `\n\nDATA DEFINITIONS:\nUse these exact definitions to interpret the metrics. Do NOT assume generic meanings if a definition is provided here:\n${foundDefs.join('\n')}`;
+  }
+  
+  let gaContext = "";
+  if (statsPayload.ga_annotations) {
+    const gaList = statsPayload.ga_annotations.map(a => `- ${a.title} (${a.dateRange})${a.description ? ': ' + a.description : ''}`).join('\n');
+    gaContext = `\n\nKNOWN BUSINESS EVENTS (GA Annotations):\nThe following internal events occurred during or near the timeline. Use these to explain anomalies, shifts in trend, or changes in performance if the timing aligns:\n${gaList}`;
+  }
+
+  const prompt=`You are a senior business analyst for Skiplagged.com. Statistical computations have already been run — your job is to interpret them into clear business language.
+
+Context: ${statsPayload.context}${dataDictionaryContext}${gaContext}
+Goal: ${statsPayload.goal}
+Metric analyzed: ${statsPayload.metric} (n=${statsPayload.n} periods${statsPayload.date_range?`, ${statsPayload.date_range[0]}–${statsPayload.date_range[1]}`:''})
+
+Statistical results:
+${JSON.stringify(statsPayload, null, 2)}
+
+Return ONLY valid, parseable JSON. Do not include markdown formatting like \`\`\`json. Do not include any introductory or concluding text.
+
+CRITICAL JSON FORMATTING RULES (FAILURE TO FOLLOW WILL CRASH THE SYSTEM):
+1. NEVER use double quotes (") inside your string values. If you must quote a term or event, use 'single quotes' ONLY.
+2. NEVER use literal line breaks or carriage returns inside your string values. Keep all text for a given field on a single, continuous line.
+3. NEVER leave a trailing comma at the end of the JSON object or arrays.
+
+Use this exact JSON structure:
+{
+  "headline": "One sentence capturing the most important finding with specific numbers",
+  "modules": [
+    {
+      "id": "trend",
+      "plain_english": "2-3 sentences explaining the trend in plain English for a non-technical exec. Use the actual numbers. Explain what p=${statsPayload.trend?.p_value||'value'} means in plain words.",
+      "what_now": "One specific, concrete action to take based on this finding."
+    },
+    {
+      "id": "seasonality",
+      "plain_english": "2-3 sentences about seasonal patterns. Use real month names or days of the week based on the provided index.",
+      "what_now": "One concrete action."
+    },
+    {
+      "id": "correlations",
+      "plain_english": "2-3 sentences about which variables actually drive the metric. Interpret the correlation coefficients and OLS coefficients in plain English.",
+      "what_now": "One concrete action."
+    },
+    {
+      "id": "anomalies",
+      "plain_english": "2-3 sentences about outliers or unusual periods. Reference any known internal business events (GA annotations) provided OR use your knowledge of major real-world events (e.g., severe weather, airline IT outages, geopolitical conflicts) around these dates that impact global air travel. If no anomalies, explain what that means.",
+      "what_now": "One concrete action."
+    },
+    {
+      "id": "yoy",
+      "plain_english": "2-3 sentences about year-over-year trajectory with specific percentages.",
+      "what_now": "One concrete action."
+    },
+    {
+      "id": "descriptive",
+      "plain_english": "2-3 sentences interpreting the distribution shape (skewness=${statsPayload.stats?.skewness}, normality=${statsPayload.stats?.normality_label}). Call out if mean vs median diverge significantly. Note if this affects interpretation of other stats.",
+      "what_now": "One concrete action based on the distribution shape."
+    },
+    {
+      "id": "data_quality",
+      "plain_english": "${statsPayload.data_quality?.warnings?.length>0?'2-3 sentences flagging the most important data quality issues found and their practical implications.':'The data passed all quality checks. Note what this means for confidence in the findings.'}",
+      "what_now": "One concrete action to address data quality or validate findings."
+    }
+    ${statsPayload.goal === 'channels' && statsPayload.channel_breakdown ? `,
+    {
+      "id": "channels",
+      "plain_english": "2-3 sentences summarizing the acquisition mix and how channel volumes are trending over time. Which channel dominates? Provide strategic insights for a marketer.",
+      "what_now": "One concrete marketing action based on the channel split."
+    },
+    {
+      "id": "channel_growth",
+      "plain_english": "2-3 sentences analyzing the fastest growing and fastest declining channels based on the growth ranking. What does this shift in momentum mean for the business?",
+      "what_now": "One concrete action regarding budget allocation or channel strategy."
+    }` : ''}
+  ]
+}`;
+
+  const apiKey = getKey();
+  if (!apiKey) { throw new Error('No API key set. Enter your Anthropic API key at the top of the page.'); }
+  
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({
+      model:'claude-sonnet-4-5-20250929', // Explicitly targeting a stable model version
+      max_tokens:2000,
+      temperature:0.1, // Lower temperature to force stricter formatting adherence
+      messages:[{role:'user',content:prompt}]
+    })
+  });
+  
+  if(!res.ok) throw new Error(`Claude API Error: ${res.status} ${res.statusText}`);
+  
+  const data=await res.json();
+  const txt=data.content?.filter(c=>c.type==='text').map(c=>c.text).join('');
+  if(!txt) throw new Error('No response body returned from Claude.');
+  
+  // Hardened Parse Logic
+  let clean = txt;
+  
+  // 1. Extract just the JSON object using regex (ignores conversational preamble/postamble)
+  const jsonMatch = clean.match(/\{[\s\S]*\}/);
+  if(jsonMatch) {
+    clean = jsonMatch[0];
+  }
+  
+  // 2. Strip markdown blocks if they slipped through
+  clean = clean.replace(/^```json/mi, '').replace(/```$/m, '').trim();
+  
+  // 3. Strip trailing commas from objects and arrays
+  clean = clean.replace(/,\s*([\]}])/g, '$1');
+  
+  try{
+    return JSON.parse(clean);
+  }catch(e){
+    console.error("Failed JSON String:", clean); // Logs to console so you can see exactly what broke it
+    
+    // Attempt a final hail-mary sanitize: remove all literal newlines and control chars
+    try {
+      let desperateClean = clean.replace(/[\n\r\t]/g, ' ');
+      return JSON.parse(desperateClean);
+    } catch(e2) {
+      throw new Error(`Claude returned malformed JSON. Check the browser console (F12) to see the exact syntax error.`);
+    }
+  }
+}
+
+const chartRegistry=[];
+async function renderResults({stats,narrative,Y,dates,T,trend,si_data,dow_data,pearsonPairs,ols,olsNames,anom,yoy_data,pop_grains,cross_section,channel_breakdown,metricCol,desc,dateCol,grain,compMode,skew,kurt,hist,gaps,allMetricDesc,dqReport}){
+  chartRegistry.forEach(c=>c.destroy()); chartRegistry.length=0;
+  const yieldFrame = () => new Promise(r => setTimeout(r, 0));
+  try {
+  // Safe defaults so shared links & older payloads never crash new render code
+  skew = skew ?? null;
+  kurt = kurt ?? null;
+  hist = hist ?? null;
+  gaps = gaps ?? [];
+  allMetricDesc = allMetricDesc ?? {};
+  dqReport = dqReport ?? null;
+  const mods=narrative?.modules||[];
+  const getText=(id,field)=>{const m=mods.find(x=>x.id===id);return m?m[field]||'':'';}
+  const hasNarrative = !!narrative;
+  const aiPlaceholder = getKey() ? '' : 'Add an API key above to generate AI insights for this section.';
+
+  const months_en=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const days_en=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  
+  let isMoney = false;
+  let isPct = false;
+  
+  if (DATA_DICTIONARY[metricCol]) {
+    isMoney = DATA_DICTIONARY[metricCol].format === "currency";
+    isPct = DATA_DICTIONARY[metricCol].format === "percent";
+  } else {
+    isMoney = /rev|fee|income|earn|spend|cost|gmv|amount|ltv/i.test(metricCol);
+    isPct = /rate|pct|percent|margin|roi|roas/i.test(metricCol);
+  }
+
+  const pre = isMoney ? '$' : '';
+  const suf = isPct ? '%' : '';
+
+  const fmt = v => {
+    const abs = Math.abs(v);
+    const sign = v < 0 ? '-' : '';
+    let valStr = '';
+    if (abs >= 1e6) valStr = (abs / 1e6).toFixed(2) + 'M';
+    else if (abs >= 1e3) valStr = (abs / 1e3).toFixed(1) + 'K';
+    else valStr = isPct ? abs.toFixed(2) : abs.toFixed(0);
+    return sign + pre + valStr + suf;
+  };
+  
+  const pFmt=p=>{if(p<0.001)return 'p < 0.001';if(p<0.01)return 'p < 0.01';if(p<0.05)return `p = ${p.toFixed(3)}`;return `p = ${p.toFixed(3)}`;};
+  const sigClass=p=>p<0.05?'sig-yes':p<0.15?'sig-warn':'sig-no';
+
+  const autocorr = dateCol ? Stats.lag1Autocorr(Y) : null;
+  const autocorrLabel = autocorr == null ? null : autocorr > 0.7 ? 'strongly persistent' : autocorr > 0.4 ? 'moderately persistent' : autocorr > 0.1 ? 'weak persistence' : autocorr < -0.1 ? 'mean-reverting' : 'noisy / random';
+  const autocorrClass = autocorr == null ? 'neu' : autocorr > 0.4 ? 'pos' : autocorr < -0.1 ? 'warn' : 'neu';
+
+  await yieldFrame();
+  const trendHTML=`
+    <div class="mod-card" id="mc-trend">
+      <div class="mod-head">
+        <div class="mod-ic">↗</div>
+        <div><div class="mod-title">Trend analysis</div><div class="mod-subtitle">${esc(metricCol)} — linear regression over time</div></div>
+      </div>
+      <div class="mod-body">
+        <div class="stats-row">
+          <div class="stat-c"><div class="stat-lbl">${grain==='month'?'Monthly':grain==='week'?'Weekly':'Daily'} change</div><div class="stat-val ${trend.slope>0?'pos':'neg'}">${trend.slope>0?'+':''}${fmt(trend.slope)}/${grain==='month'?'mo':grain==='week'?'wk':'day'}</div></div>
+          <div class="stat-c"><div class="stat-lbl">R² (fit)</div><div class="stat-val neu">${(trend.r2*100).toFixed(1)}%</div></div>
+          <div class="stat-c"><div class="stat-lbl">Overall mean</div><div class="stat-val neu">${fmt(desc.mean)}</div></div>
+          <div class="stat-c"><div class="stat-lbl">Std deviation</div><div class="stat-val neu">${fmt(desc.std)}</div></div>
+          ${autocorr!=null?`<div class="stat-c"><div class="stat-lbl">Persistence (lag-1)</div><div class="stat-val ${autocorrClass}">${autocorr.toFixed(2)} <span style="font-size:9px;font-weight:400">${autocorrLabel}</span></div></div>`:''}
+        </div>
+        <div class="plain-box"><div class="plain-lbl">What the data shows</div><div class="plain-txt" data-ns="trend-plain">${esc(getText('trend','plain_english')||aiPlaceholder)}</div></div>
+        <div class="chart-wrap"><canvas id="chart-trend"></canvas></div>
+        <div class="action-box"><div class="act-lbl">What now?</div><div class="act-txt" data-ns="trend-action">${esc(getText('trend','what_now')||aiPlaceholder)}</div></div>
+        <div class="tech-row"><span class="tech-tag">OLS linear regression</span><span class="sig-pill ${sigClass(trend.pval)}">${pFmt(trend.pval)}</span><span class="tech-tag">n=${Y.length} periods</span>${autocorr!=null?`<span class="tech-tag">lag-1 autocorr=${autocorr.toFixed(2)}</span>`:''}</div>
+      </div>
+    </div>`;
+
+  await yieldFrame();
+  let seasonDataToRender = [];
+  let seasonLabels = [];
+  let seasonSubtitle = '';
+  
+  if (grain === 'day' && dow_data) {
+    seasonSubtitle = 'Weekly Rhythm — Index relative to 7-day average';
+    seasonDataToRender = dow_data;
+    seasonLabels = days_en;
+  } else if (grain === 'month' && si_data) {
+    seasonSubtitle = 'Monthly Index — Index relative to annual average';
+    const sis = Object.entries(si_data).sort((a,b)=>parseInt(a[0])-parseInt(b[0]));
+    seasonDataToRender = sis.map(([,v])=>v);
+    seasonLabels = sis.map(([m])=>months_en[parseInt(m)-1] || m);
+  }
+
+  const seasonStats = seasonDataToRender.map((v, i) => ({label: seasonLabels[i], val: v}))
+                                        .sort((a,b)=>b.val-a.val)
+                                        .slice(0,4);
+
+  const seasonHTML=`
+    <div class="mod-card">
+      <div class="mod-head">
+        <div class="mod-ic">~</div>
+        <div><div class="mod-title">Seasonality</div><div class="mod-subtitle">${seasonSubtitle || `Insufficient data at ${grain} grain`}</div></div>
+      </div>
+      <div class="mod-body">
+        ${seasonStats.length?`<div class="stats-row">${seasonStats.map(s=>`<div class="stat-c"><div class="stat-lbl">${s.label}</div><div class="stat-val ${s.val>1?'pos':s.val<0.95?'neg':'neu'}">${(s.val*100).toFixed(1)}%</div></div>`).join('')}</div>`:''}
+        <div class="plain-box"><div class="plain-lbl">What the data shows</div><div class="plain-txt" data-ns="seasonality-plain">${esc(getText('seasonality','plain_english')||(!dateCol?'No date column detected — seasonal analysis requires a date column.':aiPlaceholder))}</div></div>
+        ${seasonDataToRender.length?`<div class="chart-wrap"><canvas id="chart-season"></canvas></div>`:''}
+        <div class="action-box"><div class="act-lbl">What now?</div><div class="act-txt" data-ns="seasonality-action">${esc(getText('seasonality','what_now')||aiPlaceholder)}</div></div>
+        <div class="tech-row"><span class="tech-tag">Ratio-to-mean index</span>${seasonStats.length?`<span class="tech-tag">Peak: ${seasonStats[0].label}</span>`:''}</div>
+      </div>
+    </div>`;
+
+  await yieldFrame();
+  const maxR=pearsonPairs?.length?Math.max(...pearsonPairs.map(p=>Math.abs(p.r))):1;
+  const corrHTML=`
+    <div class="mod-card">
+      <div class="mod-head">
+        <div class="mod-ic">r</div>
+        <div><div class="mod-title">Driver analysis</div><div class="mod-subtitle">Correlations + OLS regression — what actually moves ${esc(metricCol)}</div></div>
+      </div>
+      <div class="mod-body">
+        ${ols?`<div class="stats-row">
+          <div class="stat-c"><div class="stat-lbl">OLS R²</div><div class="stat-val pos">${(ols.r2*100).toFixed(1)}%</div></div>
+          <div class="stat-c"><div class="stat-lbl">Adj-R²</div><div class="stat-val pos">${(ols.adjR2*100).toFixed(1)}%</div></div>
+          <div class="stat-c"><div class="stat-lbl">Top driver</div><div class="stat-val neu">${esc(pearsonPairs[0]?.name||'—')}</div></div>
+        </div>`:''}
+        <div class="plain-box"><div class="plain-lbl">What the data shows</div><div class="plain-txt" data-ns="correlations-plain">${esc(getText('correlations','plain_english')||aiPlaceholder)}</div></div>
+        <div style="margin-bottom:18px">
+          ${pearsonPairs?.map(p=>`<div class="driver-row">
+            <span class="d-lbl">${esc(p.name)}</span>
+            <div class="bar-w"><div class="bar-f" style="width:${Math.abs(p.r)/maxR*100}%;background:${p.r>0?'#40C18D':'#F8414C'}"></div></div>
+            <span class="d-val" style="color:${p.r>0?'var(--teal)':'var(--red)'}">${p.r>0?'+':''}${p.r.toFixed(3)}</span>
+            <span class="d-sig">${pFmt(p.p)}</span>
+          </div>`).join('') || '<span style="font-family:var(--mono);font-size:12px;color:var(--dim)">No numerical predictors found.</span>'}
+        </div>
+        <div class="action-box"><div class="act-lbl">What now?</div><div class="act-txt" data-ns="correlations-action">${esc(getText('correlations','what_now')||aiPlaceholder)}</div></div>
+        <div class="tech-row"><span class="tech-tag">Pearson correlation</span>${ols?`<span class="tech-tag">Multivariate OLS Regression</span>`:''}${grain==='day' && olsNames?.includes('Tue')?'<span class="tech-tag">Includes DoW Dummies</span>':''}</div>
+      </div>
+    </div>`;
+
+  await yieldFrame();
+  const recentAnomalies = anom?.outliers && anom.outliers.length > 0 
+      ? [...anom.outliers].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0, 5) 
+      : [];
+
+  const anomHTML=`
+    <div class="mod-card">
+      <div class="mod-head">
+        <div class="mod-ic">⚠</div>
+        <div><div class="mod-title">Anomaly detection</div><div class="mod-subtitle">IQR × 1.5 bounds + z-score > 2.0 — ${anom?.outliers?.length||0} outlier${anom?.outliers?.length!==1?'s':''} detected</div></div>
+      </div>
+      <div class="mod-body">
+        <div class="stats-row">
+          <div class="stat-c"><div class="stat-lbl">IQR lower</div><div class="stat-val neu">${fmt(anom?.lo||0)}</div></div>
+          <div class="stat-c"><div class="stat-lbl">IQR upper</div><div class="stat-val neu">${fmt(anom?.hi||0)}</div></div>
+          <div class="stat-c"><div class="stat-lbl">Outliers found</div><div class="stat-val ${anom?.outliers?.length?'warn':'pos'}">${anom?.outliers?.length||0}</div></div>
+        </div>
+        <div class="plain-box"><div class="plain-lbl">What the data shows</div><div class="plain-txt" data-ns="anomalies-plain">${esc(getText('anomalies','plain_english')||aiPlaceholder)}</div></div>
+        ${recentAnomalies.length?`<div style="margin-bottom:16px">${recentAnomalies.map(o=>`<div class="driver-row">
+          <span class="d-lbl">${esc(o.date)}</span>
+          <div class="bar-w"><div class="bar-f" style="width:${Math.min(100,Math.abs(o.z)/3*100)}%;background:${o.direction==='high'?'var(--amber)':'var(--red)'}"></div></div>
+          <span class="d-val" style="color:${o.direction==='high'?'var(--amber)':'var(--red)'}">${fmt(o.value)}</span>
+          <span class="d-sig">z=${o.z>0?'+':''}${o.z.toFixed(2)}</span>
+        </div>`).join('')}
+        ${anom.outliers.length > 5 ? `<div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;padding-top:10px">Showing 5 most recent outliers</div>` : ''}
+        </div>`:'<div style="font-family:var(--mono);font-size:12px;color:var(--teal);margin-bottom:16px;padding:12px;background:rgba(64,193,141,.06);border-radius:8px">No outliers detected — distribution is consistent.</div>'}
+        <div class="action-box"><div class="act-lbl">What now?</div><div class="act-txt" data-ns="anomalies-action">${esc(getText('anomalies','what_now')||aiPlaceholder)}</div></div>
+        <div class="tech-row"><span class="tech-tag">IQR × 1.5 method</span><span class="tech-tag">z-score threshold: |z| > 2.0</span></div>
+      </div>
+    </div>`;
+
+  await yieldFrame();
+  const recentYoy = yoy_data && yoy_data.length > 0 
+      ? [...yoy_data].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0, 10) 
+      : [];
+  const maxAbsYoy=recentYoy.length?Math.max(...recentYoy.map(y=>Math.abs(y.yoy))):1;
+
+  const yoyHTML=`
+    <div class="mod-card">
+      <div class="mod-head">
+        <div class="mod-ic">%</div>
+        <div><div class="mod-title">${{wow:'Week-over-week',mom:'Month-over-month',yoy:'Year-over-year'}[compMode]||'Period'} comparison</div><div class="mod-subtitle">${yoy_data?.length||0} comparable periods · ${grain} grain</div></div>
+      </div>
+      <div class="mod-body">
+        ${yoy_data?.length?`<div class="stats-row">
+          <div class="stat-c"><div class="stat-lbl">Mean ${{wow:'WoW',mom:'MoM',yoy:'YoY'}[compMode]||'PoP'}</div><div class="stat-val ${Stats.mean(yoy_data.map(y=>y.yoy))>0?'pos':'neg'}">${Stats.mean(yoy_data.map(y=>y.yoy))>0?'+':''}${Stats.mean(yoy_data.map(y=>y.yoy)).toFixed(1)}%</div></div>
+          <div class="stat-c"><div class="stat-lbl">Best period</div><div class="stat-val pos">${([...yoy_data].sort((a,b)=>b.yoy-a.yoy)[0]?.date||'—')} (+${([...yoy_data].sort((a,b)=>b.yoy-a.yoy)[0]?.yoy??0).toFixed(1)}%)</div></div>
+          <div class="stat-c"><div class="stat-lbl">Worst period</div><div class="stat-val neg">${([...yoy_data].sort((a,b)=>a.yoy-b.yoy)[0]?.date||'—')} (${([...yoy_data].sort((a,b)=>a.yoy-b.yoy)[0]?.yoy??0).toFixed(1)}%)</div></div>
+        </div>`:``}
+        <div class="plain-box"><div class="plain-lbl">What the data shows</div><div class="plain-txt" data-ns="yoy-plain">${esc(getText('yoy','plain_english')||'No comparable periods found — need more data.')}</div></div>
+        ${recentYoy.length?`<div style="margin-bottom:16px">${recentYoy.map(y=>`<div class="driver-row">
+          <span class="d-lbl">${esc(y.date)}</span>
+          <div class="bar-w"><div class="bar-f" style="width:${Math.abs(y.yoy)/maxAbsYoy*100}%;background:${y.yoy>0?'#40C18D':'#F8414C'}"></div></div>
+          <span class="d-val" style="color:${y.yoy>0?'var(--teal)':'var(--red)'}">${y.yoy>0?'+':''}${y.yoy.toFixed(1)}%</span>
+          <span class="d-sig">${fmt(y.value)}</span>
+        </div>`).join('')}
+        ${yoy_data.length > 10 ? `<div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;padding-top:10px">Showing 10 most recent periods</div>` : ''}
+        </div>`:''}
+        <div class="action-box"><div class="act-lbl">What now?</div><div class="act-txt" data-ns="yoy-action">${esc(getText('yoy','what_now')||aiPlaceholder)}</div></div>
+      </div>
+    </div>`;
+
+  // ── Multi-grain PoP card (goal === 'pop') ──────────────────────────────────
+  let popAllGrainsHTML = '';
+  if (pop_grains && stats.goal === 'pop') {
+    function grainSummary(data) {
+      if (!data || data.length === 0) return {mean:'—', trend:'—', color:'var(--dim)'};
+      const vals = data.map(d=>d.yoy);
+      const m = vals.reduce((a,b)=>a+b,0)/vals.length;
+      const recent4 = vals.slice(-4), older4 = vals.slice(-8,-4);
+      const trendDir = older4.length > 0
+        ? (recent4.reduce((a,b)=>a+b,0)/recent4.length) - (older4.reduce((a,b)=>a+b,0)/older4.length)
+        : 0;
+      return {
+        mean: (m>0?'+':'')+m.toFixed(1)+'%',
+        trend: trendDir > 1 ? '↑ accel' : trendDir < -1 ? '↓ decel' : '→ stable',
+        color: m > 0 ? 'var(--teal)' : m < 0 ? 'var(--red)' : 'var(--dim)'
+      };
+    }
+    // Build unified date map — keyed by date string, works for YYYY-MM, YYYY-Www, YYYY-MM-DD
+    const popDateMap = {};
+    const addGrain = (data, key) => {
+      if (!data) return;
+      data.forEach(r => {
+        if (!popDateMap[r.date]) popDateMap[r.date] = {value: r.value};
+        popDateMap[r.date][key] = r.yoy;
+      });
+    };
+    addGrain(pop_grains.yoy, 'yoy');
+    addGrain(pop_grains.mom, 'mom');
+    addGrain(pop_grains.wow, 'wow');
+    // Sort desc — string comparison works for all ISO-style date keys when zero-padded
+    const popSortedDates = Object.keys(popDateMap).sort((a,b)=> b>a?1:-1).slice(0,16);
+
+    function pct(v) {
+      if (v == null) return `<span style="color:var(--dim);font-family:var(--mono);font-size:11px">—</span>`;
+      const c = v>0?'var(--teal)':v<0?'var(--red)':'var(--dim)';
+      return `<span style="color:${c};font-family:var(--mono);font-size:12px;font-weight:600">${v>0?'+':''}${v.toFixed(1)}%</span>`;
+    }
+
+    const yoySum = grainSummary(pop_grains.yoy);
+    const momSum = grainSummary(pop_grains.mom);
+    const wowSum = grainSummary(pop_grains.wow);
+    popAllGrainsHTML = `
+    <div class="mod-card" id="mc-pop-all">
+      <div class="mod-head">
+        <div class="mod-ic">Δ</div>
+        <div><div class="mod-title">Period over period — all grains</div><div class="mod-subtitle">${esc(metricCol)} · ${grain} input grain · sorted newest first</div></div>
+      </div>
+      <div class="mod-body">
+        <div class="stats-row" style="margin-bottom:20px">
+          <div class="stat-c">
+            <div class="stat-lbl">Mean YoY</div>
+            <div class="stat-val" style="color:${yoySum.color}">${yoySum.mean}</div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:4px">${yoySum.trend}</div>
+          </div>
+          <div class="stat-c">
+            <div class="stat-lbl">Mean MoM</div>
+            <div class="stat-val" style="color:${momSum.color}">${momSum.mean}</div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:4px">${momSum.trend}</div>
+          </div>
+          <div class="stat-c">
+            <div class="stat-lbl">Mean WoW</div>
+            <div class="stat-val" style="color:${wowSum.color}">${wowSum.mean}</div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:4px">${wowSum.trend}</div>
+          </div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px">
+          <div style="display:grid;grid-template-columns:1fr 80px 80px 80px;gap:0;background:var(--surface2);padding:7px 12px;font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid var(--border)">
+            <span>Period</span><span style="text-align:right">YoY</span><span style="text-align:right">MoM</span><span style="text-align:right">WoW</span>
+          </div>
+          ${popSortedDates.length === 0
+            ? `<div style="padding:16px 12px;font-family:var(--mono);font-size:11px;color:var(--dim)">Not enough data for comparison</div>`
+            : popSortedDates.map((d,i)=>{
+                const row = popDateMap[d];
+                return `<div style="display:grid;grid-template-columns:1fr 80px 80px 80px;gap:0;padding:7px 12px;align-items:center;border-bottom:${i<popSortedDates.length-1?'1px solid var(--border)':'none'};background:${i%2===0?'var(--surface)':'var(--surface2)'}">
+                  <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${esc(d)}</span>
+                  <span style="text-align:right">${pct(row.yoy)}</span>
+                  <span style="text-align:right">${pct(row.mom)}</span>
+                  <span style="text-align:right">${pct(row.wow)}</span>
+                </div>`;
+              }).join('')
+          }
+        </div>
+        <div class="tech-row"><span class="tech-tag">Multi-grain PoP</span><span class="tech-tag">YoY=±${grain==='month'?'12mo':grain==='week'?'52wk':'364d'}</span><span class="tech-tag">MoM=±${grain==='month'?'1mo':grain==='week'?'4wk':'28d'}</span><span class="tech-tag">WoW=±${grain==='month'?'—':grain==='week'?'1wk':'7d'}</span></div>
+      </div>
+    </div>`;
+  }
+
+  await yieldFrame();
+  let channelsHTML = '';
+  let channelGrowthHTML = '';
+  const chMod = narrative?.modules?.find(m => m.id === 'channels');
+  const chGrowthMod = narrative?.modules?.find(m => m.id === 'channel_growth');
+  
+  if (chMod && channel_breakdown && channel_breakdown.data.length > 0) {
+    const maxShare = channel_breakdown.data[0].share_pct;
+    const topChName = channel_breakdown.data[0].name;
+    const isConcentrated = maxShare > 50;
+
+    channelsHTML = `
+    <div class="mod-card" id="mc-channels">
+      <div class="mod-head">
+        <div class="mod-ic">⑆</div>
+        <div><div class="mod-title">${getDimLabel(channel_breakdown?.dimension_name||'')} Mix</div><div class="mod-subtitle">Split by ${esc(getDimLabel(channel_breakdown.dimension_name))}</div></div>
+      </div>
+      <div class="mod-body">
+        <div class="stats-row">
+          <div class="stat-c"><div class="stat-lbl">Top Channel</div><div class="stat-val ${isConcentrated ? 'warn' : 'pos'}">${esc(topChName)}</div></div>
+          <div class="stat-c"><div class="stat-lbl">Share</div><div class="stat-val ${isConcentrated ? 'warn' : 'pos'}">${maxShare}%</div></div>
+        </div>
+        <div class="plain-box"><div class="plain-lbl">Channel Insights</div><div class="plain-txt" data-ns="channels-plain">${esc(chMod.plain_english)}</div></div>
+        
+        ${channel_breakdown.timeline ? `<div class="chart-wrap" style="height:250px; margin-bottom: 24px;"><canvas id="chart-channels"></canvas></div>` : ''}
+        
+        <div style="margin-bottom:24px">
+          ${channel_breakdown.data.map((ch, idx) => {
+            const colors = ['#2A52D8', '#1A9668', '#B87800', '#D4222B', '#4A5568'];
+            const barColor = colors[idx % colors.length];
+            return `
+            <div class="driver-row" style="grid-template-columns: 100px 1fr 60px 80px;">
+              <span class="d-lbl" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(ch.name)}</span>
+              <div class="bar-w"><div class="bar-f" style="width:${(ch.share_pct/maxShare)*100}%;background:${barColor}"></div></div>
+              <span class="d-val" style="color:var(--text); text-align: right;">${ch.share_pct}%</span>
+              <span class="d-sig">${fmt(ch.value)}</span>
+            </div>
+            `;
+          }).join('')}
+        </div>
+        <div class="action-box"><div class="act-lbl">What now?</div><div class="act-txt" data-ns="channels-action">${esc(chMod.what_now)}</div></div>
+        <div class="tech-row"><span class="tech-tag">Volume Distribution</span><span class="tech-tag">Overall Vol: ${fmt(channel_breakdown.total_volume)}</span></div>
+      </div>
+    </div>`;
+
+    if (chGrowthMod && channel_breakdown.growth_ranking?.length > 0) {
+      const growthData = channel_breakdown.growth_ranking;
+      const top3 = growthData.filter(x => x.pct > 0).slice(0, 3);
+      const bottom3 = [...growthData].reverse().filter(x => x.pct <= 0).slice(0, 3);
+      
+      channelGrowthHTML = `
+      <div class="mod-card" id="mc-channel-growth">
+        <div class="mod-head">
+          <div class="mod-ic">⚡</div>
+          <div><div class="mod-title">${getDimLabel(channel_breakdown?.dimension_name||'')} Momentum</div><div class="mod-subtitle">Fastest growing vs. steepest declining</div></div>
+        </div>
+        <div class="mod-body">
+          <div class="plain-box"><div class="plain-lbl">Momentum Insights</div><div class="plain-txt" data-ns="channel_growth-plain">${esc(chGrowthMod.plain_english)}</div></div>
+          
+          <div style="display:flex; gap: 20px; margin-bottom: 24px; flex-wrap: wrap;">
+             <div style="flex: 1; min-width: 250px;">
+                <div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;margin-bottom:12px;letter-spacing:0.05em;">Top Growing</div>
+                ${top3.length ? top3.map(ch => `
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:rgba(64,193,141,0.06); border:1px solid rgba(64,193,141,0.15); border-radius:6px; margin-bottom:6px;">
+                     <span style="font-size:13px; font-weight:600; color:var(--text);">${esc(ch.name)}</span>
+                     <span style="font-family:var(--mono); font-size:13px; color:var(--teal); font-weight:600;">+${ch.pct.toFixed(1)}%</span>
+                  </div>
+                `).join('') : '<div style="font-size:12px; color:var(--dim);">No growing channels found.</div>'}
+             </div>
+             
+             <div style="flex: 1; min-width: 250px;">
+                <div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;margin-bottom:12px;letter-spacing:0.05em;">Steepest Declines</div>
+                ${bottom3.length ? bottom3.map(ch => `
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:rgba(248,65,76,0.06); border:1px solid rgba(248,65,76,0.15); border-radius:6px; margin-bottom:6px;">
+                     <span style="font-size:13px; font-weight:600; color:var(--text);">${esc(ch.name)}</span>
+                     <span style="font-family:var(--mono); font-size:13px; color:var(--red); font-weight:600;">${ch.pct.toFixed(1)}%</span>
+                  </div>
+                `).join('') : '<div style="font-size:12px; color:var(--dim);">No declining channels found.</div>'}
+             </div>
+          </div>
+
+          <div class="action-box"><div class="act-lbl">What now?</div><div class="act-txt" data-ns="channel_growth-action">${esc(chGrowthMod.what_now)}</div></div>
+          <div class="tech-row"><span class="tech-tag">Period over Period Growth</span><span class="tech-tag">Smoothed calculation</span></div>
+        </div>
+      </div>`;
+    }
+  }
+
+
+  // ── Data quality panel ───────────────────────────────────────────────────
+  let dqHTML = '';
+  if(dqReport && (dqReport.warnings.length>0||dqReport.info.length>0)){
+    const allItems=[
+      ...dqReport.warnings.map(w=>({...w,sev:'warn'})),
+      ...dqReport.info.map(i=>({...i,sev:'info'})),
+    ];
+    dqHTML=`<div class="dq-panel ${dqReport.warnings.length>0?'has-warnings':''}">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;margin-bottom:12px">
+        Data quality ${dqReport.warnings.length>0?'&#9888; '+dqReport.warnings.length+' warning'+(dqReport.warnings.length>1?'s':''):'&#10003; clean'}
+      </div>
+      ${allItems.map(item=>`<div class="dq-row">
+        <div class="dq-icon ${item.sev}">${item.sev==='warn'?'!':'i'}</div>
+        <div><div class="dq-msg">${esc(item.msg)}</div></div>
+      </div>`).join('')}
+      ${gaps&&gaps.length>0?`<div class="dq-row">
+        <div class="dq-icon warn">!</div>
+        <div class="dq-msg">${gaps.length} time gap${gaps.length>1?'s':''} detected: ${gaps.slice(0,3).map(g=>`${esc(g.after)}→${esc(g.before)} (${g.gap_days}d)`).join(', ')}${gaps.length>3?'…':''}. Period-over-period comparisons across gaps may be misleading.</div>
+      </div>`:''}
+    </div>`;
+  }
+
+  // ── Descriptive statistics module ─────────────────────────────────────────
+  const skewLabel = skew==null?'':Math.abs(skew)<0.5?'roughly normal':skew>1?'right-skewed':skew<-1?'left-skewed':skew>0?'mildly right-skewed':'mildly left-skewed';
+  const skewClass = Math.abs(skew??0)<0.5?'dist-normal':Math.abs(skew??0)>1?'dist-extreme':'dist-skew';
+  const kurtLabel = kurt==null?'':(kurt>3?'heavy-tailed':kurt<-1?'flat':'normal tails');
+
+  // Build per-col histogram rows for all metric cols
+  const descColsHTML = Object.entries(allMetricDesc||{}).map(([col, cd])=>{
+    if(!cd||!cd.hist||!cd.hist.bins) return '';
+    const bins = cd.hist.bins;
+    const maxCount = Math.max(...bins.map(b=>b.count),1);
+    const colMean = cd.desc.mean;
+    const colStd = cd.desc.std;
+    const colSkew = cd.skewness;
+    const colSkewLabel = Math.abs(colSkew)<0.5?'normal':colSkew>1?'right-skewed':colSkew<-1?'left-skewed':colSkew>0?'mild right':' mild left';
+    const colSkewClass = Math.abs(colSkew)<0.5?'dist-normal':Math.abs(colSkew)>1?'dist-extreme':'dist-skew';
+    const isRatioLabel = cd.isRatio?'<span style="font-family:var(--mono);font-size:9px;color:var(--amber);background:rgba(245,166,35,.1);padding:1px 6px;border-radius:3px;margin-left:6px">averaged</span>':'';
+    return `<div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${esc(col)}${isRatioLabel}</span>
+        <span class="dist-shape ${colSkewClass}">${colSkewLabel}</span>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:60px">
+        ${bins.map(b=>{
+          const h=Math.round((b.count/maxCount)*56)+2;
+          const withinStd=Math.abs((b.lo+b.hi)/2-colMean)<=colStd;
+          const color=withinStd?'rgba(64,193,141,0.7)':'rgba(245,166,35,0.5)';
+          return `<div title="${b.count} obs (${b.lo.toFixed(1)}–${b.hi.toFixed(1)})" style="flex:1;height:${h}px;background:${color};border-radius:2px 2px 0 0;min-width:4px"></div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:4px">
+        <span>${fmt(cd.desc.min)}</span>
+        <span>mean ${fmt(cd.desc.mean)} · med ${fmt(cd.desc.median)}</span>
+        <span>${fmt(cd.desc.max)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const madVal = Stats.mad(Y);
+  const trimMean = Stats.trimmedMean(Y, 0.1);
+  const cvPct = desc.std && desc.mean ? (desc.std / Math.abs(desc.mean) * 100) : null;
+  const cvLabel = cvPct == null ? '—' : cvPct > 150 ? 'very high' : cvPct > 100 ? 'high' : cvPct > 50 ? 'moderate' : 'low';
+  const cvClass = cvPct == null ? 'neu' : cvPct > 100 ? 'neg' : cvPct > 50 ? 'warn' : 'pos';
+
+  const descHTML=`
+    <div class="mod-card">
+      <div class="mod-head">
+        <div class="mod-ic">∑</div>
+        <div>
+          <div class="mod-title">Descriptive statistics</div>
+          <div class="mod-subtitle">Distribution shape, central tendency, spread</div>
+        </div>
+      </div>
+      <div class="mod-body">
+        <div class="stats-row">
+          <div class="stat-c"><div class="stat-lbl">Mean</div><div class="stat-val neu">${fmt(desc.mean)}</div></div>
+          <div class="stat-c"><div class="stat-lbl">Median</div><div class="stat-val neu">${fmt(desc.median)}</div></div>
+          <div class="stat-c"><div class="stat-lbl">10% trimmed mean</div><div class="stat-val neu">${fmt(trimMean)}</div></div>
+          <div class="stat-c"><div class="stat-lbl">Skewness</div>
+            <div class="stat-val ${Math.abs(skew??0)<0.5?'pos':Math.abs(skew??0)>1?'neg':'warn'}" style="font-size:15px">
+              ${skew!=null?(skew>0?'+':'')+skew.toFixed(2):'—'}
+              <span class="dist-shape ${skewClass}" style="font-size:9px">${skewLabel}</span>
+            </div>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div class="stat-c"><div class="stat-lbl">Std dev</div><div class="stat-val neu">${fmt(desc.std)}</div></div>
+          <div class="stat-c"><div class="stat-lbl">MAD (robust σ)</div><div class="stat-val neu">${fmt(madVal)}</div></div>
+          <div class="stat-c"><div class="stat-lbl">CV (volatility)</div><div class="stat-val ${cvClass}">${cvPct!=null?cvPct.toFixed(1)+'%':'—'} <span style="font-size:9px;font-weight:400">${cvLabel}</span></div></div>
+          <div class="stat-c"><div class="stat-lbl">Kurtosis</div><div class="stat-val ${Math.abs(kurt??0)<1?'pos':Math.abs(kurt??0)>3?'neg':'warn'}" style="font-size:15px">${kurt!=null?(kurt>0?'+':'')+kurt.toFixed(2):'—'} <span class="dist-shape" style="font-size:9px">${kurtLabel}</span></div></div>
+        </div>
+        ${Math.abs(desc.mean-desc.median)>desc.std*0.5?`<div style="background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--text)">
+          Mean (${fmt(desc.mean)}) and median (${fmt(desc.median)}) diverge by more than half a std dev — the distribution is skewed. Median is a more reliable central tendency estimate for this data.
+        </div>`:''}
+        ${descColsHTML?`<div style="border-top:1px solid var(--border);margin-top:4px;padding-top:16px">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px">Distribution per metric column</div>
+          ${descColsHTML}
+          <div style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:8px">Green bars = within 1 std dev of mean · Amber bars = in tails · Averaged columns use mean per period</div>
+        </div>`:''}
+        <div class="tech-row">
+          <span class="tech-tag">Sturges binning</span>
+          <span class="tech-tag">n=${desc.n}</span>
+          <span class="tech-tag">bias-corrected skewness (Type 2)</span>
+          <span class="tech-tag">MAD × 1.4826 scaling</span>
+        </div>
+      </div>
+    </div>`;
+
+  // ── Cross-sectional high vs low module ───────────────────────────────────
+  let crossSectionHTML = '';
+  if (cross_section && cross_section.comparisons.length > 0) {
+    const { comparisons, q, topMetricMean, bottomMetricMean } = cross_section;
+    const overallLift = bottomMetricMean > 0 ? (topMetricMean - bottomMetricMean) / bottomMetricMean * 100 : null;
+    const maxAbsDiff = Math.max(...comparisons.map(c => Math.abs(c.diffPct ?? 0)), 1);
+
+    crossSectionHTML = `
+    <div class="mod-card" id="mc-cross-section">
+      <div class="mod-head">
+        <div class="mod-ic">↕</div>
+        <div>
+          <div class="mod-title">High vs low — cross-sectional split</div>
+          <div class="mod-subtitle">Top 25% vs bottom 25% of records by ${esc(metricCol)} · n=${q} per group</div>
+        </div>
+      </div>
+      <div class="mod-body">
+        <div class="stats-row" style="margin-bottom:20px">
+          <div class="stat-c">
+            <div class="stat-lbl">Top 25% avg ${esc(metricCol)}</div>
+            <div class="stat-val pos">${fmt(topMetricMean)}</div>
+          </div>
+          <div class="stat-c">
+            <div class="stat-lbl">Bottom 25% avg ${esc(metricCol)}</div>
+            <div class="stat-val neg">${fmt(bottomMetricMean)}</div>
+          </div>
+          ${overallLift != null ? `<div class="stat-c">
+            <div class="stat-lbl">Spread</div>
+            <div class="stat-val ${overallLift>0?'pos':'neg'}">${overallLift>0?'+':''}${overallLift.toFixed(0)}%</div>
+          </div>` : ''}
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">
+          What's different between high and low ${esc(metricCol)} records?
+        </div>
+        ${comparisons.map(c => {
+          const d = c.diffPct;
+          if (d == null) return '';
+          const barW = Math.abs(d) / maxAbsDiff * 100;
+          const color = d > 0 ? 'var(--teal)' : 'var(--red)';
+          const sigColor = Math.abs(d) > 20 ? color : 'var(--dim)';
+          return `<div class="driver-row" style="grid-template-columns:160px 1fr 70px 90px">
+            <span class="d-lbl">${esc(c.col)}</span>
+            <div class="bar-w"><div class="bar-f" style="width:${barW}%;background:${color}"></div></div>
+            <span class="d-val" style="color:${sigColor}">${d>0?'+':''}${d.toFixed(1)}%</span>
+            <span class="d-sig" style="font-size:9px;color:var(--dim)">${fmt(c.topMean)} vs ${fmt(c.bottomMean)}</span>
+          </div>`;
+        }).join('')}
+        <div style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+          Bars show % difference in column mean between the top and bottom ${esc(metricCol)} quartiles. Larger bars = stronger association.
+        </div>
+        <div class="tech-row"><span class="tech-tag">Quartile split</span><span class="tech-tag">n=${q} per group</span><span class="tech-tag">sorted by |Δ%|</span></div>
+      </div>
+    </div>`;
+  }
+
+  const container=document.getElementById('results-container');
+
+  container.innerHTML=`
+    <div class="r-header">
+      <div class="r-headline" id="r-headline">${esc(narrative?.headline||metricCol+' — '+Y.length+' '+(grain||'')+(Y.length===1?' period':' periods')+' analyzed')}</div>
+      <div class="r-meta">
+        <span>${esc(metricCol)}</span>
+        <span>${Y.length} periods${stats?.date_range?` · ${stats.date_range[0]} – ${stats.date_range[1]}`:''}</span>
+        <span id="r-meta-ai">${hasNarrative ? 'Local stats + Claude narrative' : 'Local stats only'}</span>
+      </div>
+    </div>
+    ${dqHTML}${descHTML}${channelsHTML}${channelGrowthHTML}${trendHTML}${seasonHTML}${corrHTML}${anomHTML}${yoyHTML}${popAllGrainsHTML}${crossSectionHTML}`;
+
+  show('sec-results');
+
+  setTimeout(()=>{
+    const tc=document.getElementById('chart-trend');
+    if(tc){
+      const fitted=T.map(t=>trend.slope*t+trend.intercept);
+      chartRegistry.push(new Chart(tc,{type:'line',data:{labels:dates,datasets:[{label:metricCol,data:Y,borderColor:'#2A52D8',borderWidth:2,pointRadius:3,tension:.35,fill:false},{label:'trend',data:fitted,borderColor:'rgba(64,193,141,0.6)',borderWidth:1.5,borderDash:[5,3],pointRadius:0,fill:false}]},options:chartOpts()}));
+    }
+    const sc=document.getElementById('chart-season');
+    if(sc && seasonDataToRender.length){
+      chartRegistry.push(new Chart(sc,{type:'bar',data:{labels:seasonLabels,datasets:[{label:'season index',data:seasonDataToRender,backgroundColor:seasonDataToRender.map(v=>v>1?'rgba(64,193,141,0.6)':'rgba(248,65,76,0.5)'),borderRadius:4}]},options:{...chartOpts(),plugins:{legend:{display:false}},scales:{...chartOpts().scales,y:{...chartOpts().scales.y,ticks:{...chartOpts().scales.y.ticks,callback:v=>`${(v*100).toFixed(0)}%`}}}}}));
+    }
+    
+    const cc = document.getElementById('chart-channels');
+    if (cc && channel_breakdown?.timeline) {
+      const tl = channel_breakdown.timeline;
+      const colors = ['#2A52D8', '#1A9668', '#B87800', '#D4222B', '#4A5568', '#5A6B7F'];
+      const datasets = tl.datasets.map((ds, i) => ({
+        label: ds.label,
+        data: ds.data,
+        backgroundColor: colors[i % colors.length],
+        borderWidth: 0
+      }));
+
+      chartRegistry.push(new Chart(cc, {
+        type: 'bar',
+        data: {
+          labels: tl.labels,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, labels: { color: '#718096', font: { size: 10 }, boxWidth: 10, padding: 12 } },
+            tooltip: { mode: 'index', intersect: false }
+          },
+          scales: {
+            x: { stacked: true, ticks: { color: '#718096', font: { size: 10 }, maxTicksLimit: 12 }, grid: { display: false } },
+            y: { stacked: true, ticks: { color: '#718096', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.07)' } }
+          }
+        }
+      }));
+    }
+    
+  },150);
+  } catch(err) {
+    console.error('renderResults crash:', err);
+    document.getElementById('results-container').innerHTML += '<div style="margin-top:12px;padding:10px 14px;background:rgba(248,65,76,.08);border:1px solid rgba(248,65,76,.2);border-radius:8px;font-family:var(--mono);font-size:11px;color:var(--red)">Render error: ' + (err.message||err) + ' — open browser console (F12) for the exact line</div>';
+    show('sec-results');
+  }
+}
+
+function chartOpts(){
+  return{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#718096',font:{size:10},boxWidth:10,padding:12}}},scales:{x:{ticks:{color:'#718096',font:{size:10},maxTicksLimit:12},grid:{color:'rgba(0,0,0,0.07)'}},y:{ticks:{color:'#718096',font:{size:10}},grid:{color:'rgba(0,0,0,0.07)'}}}};
+}
+
+function renderError(msg){
+  document.getElementById('results-container').innerHTML=`<div style="background:rgba(248,65,76,.08);border:1px solid rgba(248,65,76,.2);border-radius:9px;padding:18px 22px;font-family:var(--mono);font-size:13px;color:var(--red)">Analysis error: ${esc(msg)}<br><button class="btn btn-g" onclick="resetAll()" style="margin-top:12px;font-size:12px">Try again</button></div>`;
+  show('sec-results');
+}
+
+function show(id){
+  const el=document.getElementById(id);
+  el.classList.remove('hidden');
+  if(id==='sec-ctx') populateMetricSelector();
+  setTimeout(()=>{el.scrollIntoView({behavior:'smooth',block:'start'});},80);
+}
+
+function populateMetricSelector(){
+  const metrics=detectedCols.filter(c=>c.role==='metric');
+  const opts=document.getElementById('metric-select-opts');
+  if(!opts) return;
+  const block=document.getElementById('metric-sel-block');
+  if(metrics.length<=1){
+    if(block) block.style.display='none';
+    return;
+  }
+  if(block) block.style.display='';
+  opts.innerHTML=metrics.map(c=>`<div class="q-opt ${ctx.metric===c.name?'on':''}" onclick="ctx.metric='${c.name.replace(/'/g,"\\'")}';document.querySelectorAll('#metric-select-opts .q-opt').forEach(o=>o.classList.remove('on'));this.classList.add('on')">${esc(c.name)}</div>`).join('');
+  if(!ctx.metric||!metrics.find(c=>c.name===ctx.metric)){
+    ctx.metric=metrics[0]?.name||'';
+    opts.querySelector('.q-opt')?.classList.add('on');
+  }
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+
+function resetAll(){
+  parsedData=null;detectedCols=null;ctx.goal=null; lastRunPayload=null;
+  ['sec-ctx','sec-run','sec-results','sec-test'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  document.getElementById('schema-wrap').classList.add('hidden');
+  document.getElementById('schema-cols').innerHTML='';
+  ctx.metric='';
+  document.getElementById('results-container').innerHTML='';
+  document.getElementById('paste-area').value='';
+  document.getElementById('focus-inp').value='';
+  document.getElementById('use-ga-ann').checked = true;
+  document.querySelectorAll('.q-opt').forEach(o=>o.classList.remove('on'));
+  ctx.comp='yoy';
+  ctx.grain='auto';
+  document.querySelector('.q-opt[data-v="yoy"]')?.classList.add('on');
+  document.querySelector('.q-opt[data-v="auto"]')?.classList.add('on');
+  chartRegistry.forEach(c=>c.destroy());chartRegistry.length=0;
+  window.scrollTo({top:0,behavior:'smooth'});
+  window.location.hash = ''; 
+}
+
+const KEY_LS = 'sk_anthropic_key';
+function getKey() { return (localStorage.getItem(KEY_LS) || '').replace(/[^\x20-\x7E]/g, '').trim(); }
+
+function initKeyBanner() {
+  const key = getKey();
+  if (key) showKeySaved(key);
+}
+
+function saveKey() {
+  const val = document.getElementById('key-input').value.replace(/[^\x20-\x7E]/g, '').trim();
+  if (!val.startsWith('sk-')) {
+    document.getElementById('key-input').style.borderColor = 'var(--red)';
+    setTimeout(() => document.getElementById('key-input').style.borderColor = '', 1200);
+    return;
+  }
+  localStorage.setItem(KEY_LS, val);
+  showKeySaved(val);
+}
+
+function showKeySaved(key) {
+  const banner = document.getElementById('key-banner');
+  const inputRow = document.getElementById('key-input-row');
+  const savedRow = document.getElementById('key-saved-row');
+  const icon = document.getElementById('key-icon');
+  const title = document.getElementById('key-title');
+  const sub = document.getElementById('key-sub');
+  banner.classList.add('ok');
+  icon.textContent = '\u2713';
+  icon.style.background = 'rgba(64,193,141,.12)';
+  title.textContent = 'API key connected';
+  sub.textContent = '...\u00B7\u00B7\u00B7' + key.slice(-8);
+  inputRow.style.display = 'none';
+  savedRow.style.display = 'flex';
+}
+
+function changeKey() {
+  const banner = document.getElementById('key-banner');
+  const inputRow = document.getElementById('key-input-row');
+  const savedRow = document.getElementById('key-saved-row');
+  const icon = document.getElementById('key-icon');
+  const title = document.getElementById('key-title');
+  const sub = document.getElementById('key-sub');
+  localStorage.removeItem(KEY_LS);
+  banner.classList.remove('ok');
+  icon.textContent = '🔑';
+  icon.style.background = 'rgba(255,184,0,.12)';
+  title.textContent = 'Anthropic API key required for AI narratives';
+  sub.textContent = 'Stats run locally \u2014 key is only used to generate plain-English explanations. Saved to your browser only, never transmitted anywhere else.';
+  inputRow.style.display = 'flex';
+  savedRow.style.display = 'none';
+  document.getElementById('key-input').value = '';
+}
+
+
+
+
+// ── Hypothesis + Load engine: deferred until after first paint ───────────────
+// Functions are defined at module level (global scope) but execution is
+// deferred so they don't block the first paint.
+function _runHypInit() {
+  if (window._hypInitDone) return;
+  window._hypInitDone = true;
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LOAD FROM ANALYSIS SHORTCUT
+// ═══════════════════════════════════════════════════════════════════════════
+
+function showLoadBanner() {
+  const banner = document.getElementById('hyp-load-banner');
+  if (!lastRunPayload || !banner) return;
+
+  const st = lastRunPayload;
+  const metricCol = st.metricCol || 'metric';
+  const desc = st.desc;
+  const chs = st.channel_breakdown?.data;
+  const yoys = st.yoy_data;
+  const allDesc = st.allMetricDesc || {};
+
+  const btns = [];
+  const descLines = [];
+
+  // ── Option 1: One-sample t from overall series ────────────────────────────
+  if (desc && desc.n >= 2) {
+btns.push({ label: 'One-sample t', title: `Load ${metricCol} summary (n=${desc.n})`, fn: 'loadOneSample' });
+descLines.push(`Series: mean=${fmtVal(desc.mean)}, std=${fmtVal(desc.std)}, n=${desc.n}`);
+  }
+
+  // ── Option 2: Two-sample t from channel breakdown (top 2 channels) ────────
+  if (chs && chs.length >= 2 && st.channel_breakdown?.timeline) {
+btns.push({ label: 'Two-sample t (channels)', title: `${chs[0].name} vs ${chs[1].name}`, fn: 'loadTwoSampleChannels' });
+descLines.push(`Channels: ${chs[0].name} vs ${chs[1].name}`);
+  }
+
+  // ── Option 3: Two-sample t from first half vs second half of series ───────
+  const Y = st.Y;
+  if (Y && Y.length >= 6) {
+btns.push({ label: 'Two-sample t (first vs last half)', title: 'Split series at midpoint', fn: 'loadTwoSampleHalves' });
+  }
+
+  // ── Option 4: Two-proportion z from ratio metric cols ─────────────────────
+  const ratioCols = Object.entries(allDesc).filter(([,cd])=>cd.isRatio && cd.desc?.n >= 2);
+  if (ratioCols.length >= 2) {
+btns.push({ label: 'Two-proportion z (rates)', title: `${ratioCols[0][0]} vs ${ratioCols[1][0]}`, fn: 'loadTwoProportions' });
+  }
+
+  // ── Option 5: Paired t from period-over-period data ──────────────────────
+  if (yoys && yoys.length >= 3) {
+const compLabel = { wow:'WoW', mom:'MoM', yoy:'YoY' }[st.compMode] || 'period';
+btns.push({ label: `Paired t (${compLabel} changes)`, title: `${yoys.length} matched ${compLabel} pairs`, fn: 'loadPairedPeriods' });
+descLines.push(`${compLabel} pairs: ${yoys.length} comparable periods`);
+  }
+
+  if (!btns.length) { banner.style.display = 'none'; return; }
+
+  document.getElementById('hyp-load-label').textContent =
+`${metricCol} analysis loaded — pre-populate a test:`;
+  document.getElementById('hyp-load-desc').textContent = descLines.join(' · ');
+  document.getElementById('hyp-load-btns').innerHTML = btns.map(b =>
+`<button class="btn btn-g" style="font-size:11px;padding:6px 12px" title="${esc(b.title)}" onclick="${b.fn}()">${esc(b.label)} ↗</button>`
+  ).join('');
+
+  banner.style.display = '';
+}
+
+function fmtVal(v) {
+  if (v == null || isNaN(v)) return '—';
+  if (Math.abs(v) >= 1e6) return (v/1e6).toFixed(2)+'M';
+  if (Math.abs(v) >= 1e3) return (v/1e3).toFixed(1)+'K';
+  return v.toFixed(2);
+}
+
+// ── Loader functions ─────────────────────────────────────────────────────────
+
+function loadOneSample() {
+  const st = lastRunPayload;
+  if (!st?.desc) return;
+  selectTest('one_sample_t');
+  document.getElementById('ost-mean').value = st.desc.mean.toFixed(4);
+  document.getElementById('ost-std').value  = st.desc.std.toFixed(4);
+  document.getElementById('ost-n').value    = st.desc.n;
+  // μ₀ defaults to median so user can test "is mean != median" (skewness test)
+  document.getElementById('ost-mu').value   = st.desc.median.toFixed(4);
+  showLoadToast(`Loaded: mean=${fmtVal(st.desc.mean)}, std=${fmtVal(st.desc.std)}, n=${st.desc.n}. Set μ₀ to your target value.`);
+}
+
+function loadTwoSampleChannels() {
+  const st = lastRunPayload;
+  const chs = st?.channel_breakdown?.data;
+  const tl  = st?.channel_breakdown?.timeline;
+  if (!chs || chs.length < 2 || !tl) return;
+
+  selectTest('two_sample_t');
+
+  // Build per-channel series from timeline
+  function channelStats(chName) {
+const ds = tl.datasets.find(d => d.label === chName);
+if (!ds || !ds.data.length) return null;
+const vals = ds.data.filter(v => v != null && !isNaN(v));
+if (vals.length < 2) return null;
+const m = vals.reduce((s,v)=>s+v,0)/vals.length;
+const variance = vals.reduce((s,v)=>s+(v-m)**2,0)/(vals.length-1);
+return { mean: m, std: Math.sqrt(variance), n: vals.length };
+  }
+
+  const sA = channelStats(chs[0].name);
+  const sB = channelStats(chs[1].name);
+
+  if (sA) {
+document.getElementById('tst-mean-a').value = sA.mean.toFixed(4);
+document.getElementById('tst-std-a').value  = sA.std.toFixed(4);
+document.getElementById('tst-n-a').value    = sA.n;
+  }
+  if (sB) {
+document.getElementById('tst-mean-b').value = sB.mean.toFixed(4);
+document.getElementById('tst-std-b').value  = sB.std.toFixed(4);
+document.getElementById('tst-n-b').value    = sB.n;
+  }
+  showLoadToast(`Loaded: Group A = ${chs[0].name}, Group B = ${chs[1].name}`);
+}
+
+function loadTwoSampleHalves() {
+  const st = lastRunPayload;
+  const Y = st?.Y;
+  if (!Y || Y.length < 6) return;
+
+  selectTest('two_sample_t');
+
+  const half = Math.floor(Y.length / 2);
+  const firstHalf = Y.slice(0, half);
+  const lastHalf  = Y.slice(-half);
+
+  function halfStats(vals) {
+const m = vals.reduce((s,v)=>s+v,0)/vals.length;
+const std = Math.sqrt(vals.reduce((s,v)=>s+(v-m)**2,0)/(vals.length-1));
+return { mean:m, std, n:vals.length };
+  }
+
+  const sA = halfStats(firstHalf);
+  const sB = halfStats(lastHalf);
+  const dateA = st.dates ? `${st.dates[0]}–${st.dates[half-1]}` : 'first half';
+  const dateB = st.dates ? `${st.dates[st.dates.length-half]}–${st.dates[st.dates.length-1]}` : 'last half';
+
+  document.getElementById('tst-mean-a').value = sA.mean.toFixed(4);
+  document.getElementById('tst-std-a').value  = sA.std.toFixed(4);
+  document.getElementById('tst-n-a').value    = sA.n;
+  document.getElementById('tst-mean-b').value = sB.mean.toFixed(4);
+  document.getElementById('tst-std-b').value  = sB.std.toFixed(4);
+  document.getElementById('tst-n-b').value    = sB.n;
+  showLoadToast(`First half (${dateA}) vs last half (${dateB})`);
+}
+
+function loadTwoProportions() {
+  const st = lastRunPayload;
+  const allDesc = st?.allMetricDesc || {};
+  const ratioCols = Object.entries(allDesc).filter(([,cd])=>cd.isRatio && cd.desc?.n >= 2);
+  if (ratioCols.length < 2) return;
+
+  selectTest('two_proportion_z');
+
+  // Use mean rate * n as synthetic x (conversions), n as trials
+  const [colA, cdA] = ratioCols[0];
+  const [colB, cdB] = ratioCols[1];
+
+  const rateA = cdA.desc.mean, nA = cdA.desc.n;
+  const rateB = cdB.desc.mean, nB = cdB.desc.n;
+
+  document.getElementById('tpz-x1').value = Math.round(rateA * nA);
+  document.getElementById('tpz-n1').value = nA;
+  document.getElementById('tpz-x2').value = Math.round(rateB * nB);
+  document.getElementById('tpz-n2').value = nB;
+  showLoadToast(`Loaded: ${colA} (${(rateA*100).toFixed(2)}%) vs ${colB} (${(rateB*100).toFixed(2)}%)`);
+}
+
+function loadPairedPeriods() {
+  const st = lastRunPayload;
+  const yoys = st?.yoy_data;
+  if (!yoys || yoys.length < 3) return;
+
+  selectTest('paired_t');
+
+  const rows = yoys.map(y => `${y.prev_value != null ? y.prev_value.toFixed(2) : y.value.toFixed(2)},${y.value.toFixed(2)}`).join('\n');
+  document.getElementById('paired-data').value = 'Before,After\n' + rows;
+  const compLabel = { wow:'WoW', mom:'MoM', yoy:'YoY' }[st.compMode] || 'period';
+  showLoadToast(`Loaded ${yoys.length} ${compLabel} pairs (before, after values)`);
+}
+
+function showLoadToast(msg) {
+  document.getElementById('hyp-load-desc').textContent = '✓ ' + msg;
+  document.getElementById('hyp-load-desc').style.color = 'var(--teal)';
+  setTimeout(()=>{
+const el = document.getElementById('hyp-load-desc');
+if(el) el.style.color = '';
+  }, 3000);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PAGE NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════
+function switchPage(page) {
+  document.getElementById('page-analysis').classList.toggle('hidden-page', page !== 'analysis');
+  document.getElementById('nav-analysis').classList.toggle('active', page === 'analysis');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  HYPOTHESIS TESTING ENGINE
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Normal CDF (standard)
+function normCDF(z) {
+  const t = 1/(1+0.2316419*Math.abs(z));
+  const d = 0.3989423*Math.exp(-z*z/2);
+  const p = d*t*(0.3193815+t*(-0.3565638+t*(1.7814779+t*(-1.8212560+t*1.3302744))));
+  return z >= 0 ? 1-p : p;
+}
+
+// Inverse normal (for critical values)
+function normInv(p) {
+  if(p<=0) return -Infinity; if(p>=1) return Infinity;
+  const a=[2.50662823884,-18.61500062529,41.39119773534,-25.44106049637];
+  const b=[-8.47351093090,23.08336743743,-21.06224101826,3.13082909833];
+  const c=[0.3374754822726147,0.9761690190917186,0.1607979714918209,0.0276438810333863,0.0038405729373609,0.0003951896511349,0.0000321767881768,0.0000002888167364,0.0000003960315187];
+  const u=p-0.5;
+  if(Math.abs(u)<0.42){
+const r=u*u;
+return u*(((a[3]*r+a[2])*r+a[1])*r+a[0])/((((b[3]*r+b[2])*r+b[1])*r+b[0])*r+1);
+  }
+  const r=Math.log(-Math.log(p<0.5?p:1-p));
+  const x=c[0]+r*(c[1]+r*(c[2]+r*(c[3]+r*(c[4]+r*(c[5]+r*(c[6]+r*(c[7]+r*c[8])))))));
+  return p<0.5?-x:x;
+}
+
+// Chi-square CDF via regularized gamma
+function chiSqCDF(x, df) {
+  if(x<=0) return 0;
+  return lowerGamma(df/2, x/2)/gamma(df/2);
+}
+function gamma(n) {
+  if(n<=0) return Infinity;
+  // Lanczos approximation
+  const g=7, c=[0.99999999999980993,676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+  let x=n;
+  if(x<0.5) return Math.PI/(Math.sin(Math.PI*x)*gamma(1-x));
+  x-=1;
+  let a=c[0];
+  const t=x+g+0.5;
+  for(let i=1;i<g+2;i++) a+=c[i]/(x+i);
+  return Math.sqrt(2*Math.PI)*Math.pow(t,x+0.5)*Math.exp(-t)*a;
+}
+function lowerGamma(a, x) {
+  // Series expansion
+  if(x<0) return 0;
+  let sum=1/a, term=1/a;
+  for(let n=1;n<200;n++){
+term*=x/(a+n);
+sum+=term;
+if(Math.abs(term)<1e-10) break;
+  }
+  return sum*Math.exp(-x+a*Math.log(x));
+}
+
+// Power calculation (approximate, two-sample or one-sample)
+function calcPower(tStat, df, alpha, tail) {
+  const critT = tail==='two' ? Stats.tpval(normInv(1-alpha/2),1e6) : Stats.tpval(normInv(1-alpha),1e6);
+  // Non-centrality: approximate
+  const power = tail==='two' ?
+(1 - normCDF(normInv(1-alpha/2) - Math.abs(tStat)) + normCDF(-normInv(1-alpha/2) - Math.abs(tStat))) :
+(1 - normCDF(normInv(1-alpha) - Math.abs(tStat)));
+  return Math.min(0.9999, Math.max(0.0001, power));
+}
+
+// Effect size helpers
+function cohensD(mean1, std1, n1, mean2, std2, n2) {
+  const pooledStd = Math.sqrt(((n1-1)*std1*std1 + (n2-1)*std2*std2)/(n1+n2-2));
+  return pooledStd > 0 ? Math.abs(mean1-mean2)/pooledStd : 0;
+}
+function cohensH(p1, p2) {
+  return 2*Math.asin(Math.sqrt(p1)) - 2*Math.asin(Math.sqrt(p2));
+}
+
+// Min sample size for desired power (80%) — approximate
+function minSampleSize(effectSize, alpha, power=0.8, tail='two') {
+  if(effectSize<=0) return Infinity;
+  const zAlpha = tail==='two' ? normInv(1-alpha/2) : normInv(1-alpha);
+  const zBeta = normInv(power);
+  return Math.ceil(2*Math.pow((zAlpha+zBeta)/effectSize, 2));
+}
+
+// p-value from t-stat (uses Stats.tpval)
+function pFromT(t, df, tail) {
+  const p_two = Stats.tpval(t, df);
+  if(tail==='two') return p_two;
+  if(tail==='greater') return t>0 ? p_two/2 : 1-p_two/2;
+  return t<0 ? p_two/2 : 1-p_two/2;
+}
+
+// p-value from z-stat
+function pFromZ(z, tail) {
+  const p_two = 2*(1-normCDF(Math.abs(z)));
+  if(tail==='two') return p_two;
+  if(tail==='greater') return z>0 ? p_two/2 : 1-p_two/2;
+  return z<0 ? p_two/2 : 1-p_two/2;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  INDIVIDUAL TEST FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function test_one_sample_t() {
+  const xbar = +document.getElementById('ost-mean').value;
+  const s = +document.getElementById('ost-std').value;
+  const n = +document.getElementById('ost-n').value;
+  const mu0 = +document.getElementById('ost-mu').value;
+  const tail = document.getElementById('ost-tail').value;
+  const alpha = +document.getElementById('ost-alpha').value;
+
+  if([xbar,s,n,mu0].some(v=>isNaN(v)||v===0&&['s','n'].includes('s')))
+return {error:'Please fill in all fields.'};
+  if(s<=0) return {error:'Standard deviation must be positive.'};
+  if(n<2) return {error:'Sample size must be at least 2.'};
+
+  const se = s/Math.sqrt(n);
+  const t = (xbar - mu0)/se;
+  const df = n-1;
+  const pval = pFromT(t, df, tail);
+  const critT = tail==='two'?normInv(1-alpha/2):normInv(1-alpha);
+  const sig = pval < alpha;
+  const d = Math.abs(xbar-mu0)/s; // Cohen's d (one-sample)
+  const power = calcPower(t, df, alpha, tail);
+  const minN = minSampleSize(d, alpha, 0.8, tail);
+
+  // CI
+  const ciZ = normInv(0.975);
+  const ciLo = xbar - ciZ*se;
+  const ciHi = xbar + ciZ*se;
+
+  return {
+test:'One-sample t-test', sig, tail, alpha,
+stat_label:'t-statistic', stat: t, df, pval,
+critT, effectLabel:"Cohen's d", effect: d,
+power, minN,
+ciLo, ciHi, ciLevel:95,
+inputs:{xbar,s,n,mu0},
+plain: buildPlain_oneSampleT(xbar,s,n,mu0,t,df,pval,sig,alpha,tail,d,power,ciLo,ciHi)
+  };
+}
+
+function test_two_sample_t() {
+  const ma=+document.getElementById('tst-mean-a').value, sa=+document.getElementById('tst-std-a').value, na=+document.getElementById('tst-n-a').value;
+  const mb=+document.getElementById('tst-mean-b').value, sb=+document.getElementById('tst-std-b').value, nb=+document.getElementById('tst-n-b').value;
+  const tail=document.getElementById('tst-tail').value, alpha=+document.getElementById('tst-alpha').value;
+
+  if([ma,sa,na,mb,sb,nb].some(v=>isNaN(v))) return {error:'Please fill in all fields.'};
+  if(sa<=0||sb<=0) return {error:'Standard deviations must be positive.'};
+  if(na<2||nb<2) return {error:'Sample sizes must be at least 2.'};
+
+  // Welch's t-test (unequal variance)
+  const se = Math.sqrt(sa*sa/na + sb*sb/nb);
+  const t = (ma-mb)/se;
+  // Welch-Satterthwaite df
+  const df = Math.pow(sa*sa/na+sb*sb/nb,2) / (Math.pow(sa*sa/na,2)/(na-1) + Math.pow(sb*sb/nb,2)/(nb-1));
+  const pval = pFromT(t, df, tail);
+  const sig = pval < alpha;
+  const d = cohensD(ma,sa,na,mb,sb,nb);
+  const power = calcPower(t, df, alpha, tail);
+  const minN = minSampleSize(d, alpha, 0.8, tail);
+
+  const ciZ = normInv(0.975);
+  const diff = ma-mb;
+  const ciLo = diff - ciZ*se;
+  const ciHi = diff + ciZ*se;
+
+  return {
+test:"Two-sample t-test (Welch's)", sig, tail, alpha,
+stat_label:'t-statistic', stat:t, df, pval,
+effectLabel:"Cohen's d", effect:d, power, minN,
+ciLo, ciHi, ciLevel:95,
+diff, inputs:{ma,sa,na,mb,sb,nb},
+plain: buildPlain_twoSampleT(ma,sa,na,mb,sb,nb,t,df,pval,sig,alpha,tail,d,power,diff,ciLo,ciHi)
+  };
+}
+
+function test_proportion_z() {
+  const x=+document.getElementById('pz-x').value, n=+document.getElementById('pz-n').value, p0=+document.getElementById('pz-p0').value;
+  const tail=document.getElementById('pz-tail').value, alpha=+document.getElementById('pz-alpha').value;
+
+  if([x,n,p0].some(v=>isNaN(v))) return {error:'Please fill in all fields.'};
+  if(n<1) return {error:'n must be at least 1.'};
+  if(p0<=0||p0>=1) return {error:'Baseline rate must be between 0 and 1.'};
+  if(x<0||x>n) return {error:'Conversions must be between 0 and n.'};
+
+  const phat = x/n;
+  const se = Math.sqrt(p0*(1-p0)/n);
+  const z = (phat-p0)/se;
+  const pval = pFromZ(z, tail);
+  const sig = pval < alpha;
+  const h = Math.abs(cohensH(phat, p0));
+  const power = calcPower(z, Infinity, alpha, tail);
+  const minN = minSampleSize(h, alpha, 0.8, tail);
+
+  const ciSe = Math.sqrt(phat*(1-phat)/n);
+  const ciZ = normInv(0.975);
+
+  return {
+test:'One-proportion z-test', sig, tail, alpha,
+stat_label:'z-statistic', stat:z, df:Infinity, pval,
+effectLabel:"Cohen's h", effect:h, power, minN,
+ciLo:phat-ciZ*ciSe, ciHi:phat+ciZ*ciSe, ciLevel:95,
+phat, inputs:{x,n,p0},
+plain: buildPlain_propZ(phat,p0,n,z,pval,sig,alpha,tail,h,power)
+  };
+}
+
+function test_two_proportion_z() {
+  const x1=+document.getElementById('tpz-x1').value, n1=+document.getElementById('tpz-n1').value;
+  const x2=+document.getElementById('tpz-x2').value, n2=+document.getElementById('tpz-n2').value;
+  const tail=document.getElementById('tpz-tail').value, alpha=+document.getElementById('tpz-alpha').value;
+
+  if([x1,n1,x2,n2].some(v=>isNaN(v))) return {error:'Please fill in all fields.'};
+  if(n1<1||n2<1) return {error:'Sample sizes must be at least 1.'};
+
+  const p1=x1/n1, p2=x2/n2;
+  const pPool=(x1+x2)/(n1+n2);
+  const se=Math.sqrt(pPool*(1-pPool)*(1/n1+1/n2));
+  const z=(p2-p1)/se;
+  const pval=pFromZ(z,tail);
+  const sig=pval<alpha;
+  const h=Math.abs(cohensH(p1,p2));
+  const lift=(p1>0)?(p2-p1)/p1*100:0;
+  const power=calcPower(z,Infinity,alpha,tail);
+  const minN=minSampleSize(h,alpha,0.8,tail);
+
+  const ciSe=Math.sqrt(p1*(1-p1)/n1+p2*(1-p2)/n2);
+  const ciZ=normInv(0.975);
+  const diff=p2-p1;
+
+  return {
+test:'Two-proportion z-test', sig, tail, alpha,
+stat_label:'z-statistic', stat:z, df:Infinity, pval,
+effectLabel:"Cohen's h", effect:h, power, minN,
+ciLo:diff-ciZ*ciSe, ciHi:diff+ciZ*ciSe, ciLevel:95,
+p1, p2, lift, diff, inputs:{x1,n1,x2,n2},
+plain: buildPlain_twoPropZ(p1,p2,n1,n2,z,pval,sig,alpha,tail,h,lift,power,diff)
+  };
+}
+
+function test_chi_square() {
+  const raw=document.getElementById('chisq-data').value.trim();
+  const alpha=+document.getElementById('chisq-alpha').value;
+
+  if(!raw) return {error:'Please enter category data.'};
+
+  const rows=raw.split('\n').map(r=>r.trim()).filter(r=>r&&!r.toLowerCase().startsWith('category'));
+  if(rows.length<2) return {error:'Need at least 2 categories.'};
+
+  const cats=[], obs=[], exp_pct=[];
+  for(const row of rows){
+const parts=row.split(',').map(s=>s.trim());
+if(parts.length<3) return {error:`Row "${row}" needs 3 columns: Category, Observed, Expected%`};
+cats.push(parts[0]);
+const o=+parts[1], e=+parts[2];
+if(isNaN(o)||isNaN(e)) return {error:`Non-numeric values in row "${row}"`};
+obs.push(o); exp_pct.push(e);
+  }
+
+  const totalPct=exp_pct.reduce((s,v)=>s+v,0);
+  if(Math.abs(totalPct-100)>1) return {error:`Expected percentages sum to ${totalPct.toFixed(1)}%, must be 100%.`};
+
+  const totalObs=obs.reduce((s,v)=>s+v,0);
+  const exp=exp_pct.map(p=>totalObs*p/100);
+
+  // Check expected cell counts
+  const lowCells=exp.filter(e=>e<5).length;
+
+  let chiSq=0;
+  const contributions=cats.map((c,i)=>{
+const contrib=Math.pow(obs[i]-exp[i],2)/exp[i];
+chiSq+=contrib;
+return {cat:c,obs:obs[i],exp:+exp[i].toFixed(1),contrib:+contrib.toFixed(3),resid:+((obs[i]-exp[i])/Math.sqrt(exp[i])).toFixed(3)};
+  });
+
+  const df=cats.length-1;
+  const pval=1-chiSqCDF(chiSq,df);
+  const sig=pval<alpha;
+  // Cramer's V
+  const cramersV=Math.sqrt(chiSq/(totalObs*(df)));
+
+  return {
+test:"Chi-square goodness of fit", sig, alpha,
+stat_label:'χ² statistic', stat:chiSq, df, pval,
+effectLabel:"Cramér's V", effect:cramersV,
+power:null, minN:null,
+contributions, lowCells,
+plain: buildPlain_chiSq(cats,obs,exp,chiSq,df,pval,sig,alpha,cramersV,contributions,lowCells)
+  };
+}
+
+function test_paired_t() {
+  const raw=document.getElementById('paired-data').value.trim();
+  const tail=document.getElementById('paired-tail').value, alpha=+document.getElementById('paired-alpha').value;
+
+  if(!raw) return {error:'Please paste paired data.'};
+  const rows=raw.split('\n').map(r=>r.trim()).filter(r=>r&&!r.toLowerCase().startsWith('before'));
+  if(rows.length<3) return {error:'Need at least 3 pairs.'};
+
+  const diffs=[];
+  for(const row of rows){
+const parts=row.split(',').map(s=>+s.trim());
+if(parts.length<2||isNaN(parts[0])||isNaN(parts[1])) return {error:`Could not parse row: "${row}"`};
+diffs.push(parts[1]-parts[0]);
+  }
+
+  const n=diffs.length;
+  const dbar=Stats.mean(diffs);
+  const sd=Stats.stddevPop(diffs)*Math.sqrt(n/(n-1)); // sample std dev
+  const se=sd/Math.sqrt(n);
+  const t=dbar/se;
+  const df=n-1;
+  const pval=pFromT(t,df,tail);
+  const sig=pval<alpha;
+  const d=Math.abs(dbar)/sd;
+  const power=calcPower(t,df,alpha,tail);
+  const minN=minSampleSize(d,alpha,0.8,tail);
+  const ciZ=normInv(0.975);
+
+  return {
+test:'Paired t-test', sig, tail, alpha,
+stat_label:'t-statistic', stat:t, df, pval,
+effectLabel:"Cohen's d", effect:d, power, minN,
+ciLo:dbar-ciZ*se, ciHi:dbar+ciZ*se, ciLevel:95,
+dbar, sd, n, inputs:{n,dbar,sd},
+plain: buildPlain_pairedT(diffs,dbar,sd,n,t,df,pval,sig,alpha,tail,d,power)
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  PLAIN ENGLISH BUILDERS
+// ═══════════════════════════════════════════════════════════════════════════
+const fmt3 = v => isNaN(v)?'—':v<0.001?'< 0.001':v.toFixed(3);
+const fmtPct = v => (v*100).toFixed(2)+'%';
+const fmtN = v => v>10000?Math.round(v).toLocaleString():v.toFixed(1);
+const effectLabel = d => Math.abs(d)<0.2?'negligible':Math.abs(d)<0.5?'small':Math.abs(d)<0.8?'medium':'large';
+
+function buildPlain_oneSampleT(xbar,s,n,mu0,t,df,pval,sig,alpha,tail,d,power,ciLo,ciHi){
+  const dir = tail==='two'?'different from':(tail==='greater'?'greater than':'less than');
+  const verdict = sig
+? `The observed mean of ${fmtN(xbar)} is statistically significantly ${dir} the target value of ${fmtN(mu0)} (t(${df})=${fmtN(t)}, p=${fmt3(pval)}).`
+: `There is not enough evidence to conclude the mean (${fmtN(xbar)}) is ${dir} the target (${fmtN(mu0)}) at the α=${alpha} level (p=${fmt3(pval)}).`;
+  const eff = `The effect size is ${effectLabel(d)} (Cohen's d=${d.toFixed(2)}). The 95% CI for the true mean is [${fmtN(ciLo)}, ${fmtN(ciHi)}].`;
+  const pow = power<0.8&&!sig?` Note: observed power is ${(power*100).toFixed(0)}% — this test may be underpowered. Consider collecting more data (estimated minimum n≈${Math.ceil(minSampleSize(d,alpha,0.8,tail))}).`:'';
+  return verdict+' '+eff+pow;
+}
+
+function buildPlain_twoSampleT(ma,sa,na,mb,sb,nb,t,df,pval,sig,alpha,tail,d,power,diff,ciLo,ciHi){
+  const dir=tail==='two'?'different':(tail==='greater'?'higher than B':'lower than B');
+  const verdict=sig
+?`Group A (mean=${fmtN(ma)}) is statistically significantly ${dir} from Group B (mean=${fmtN(mb)}) — t(${Math.round(df)})=${fmtN(t)}, p=${fmt3(pval)}.`
+:`No significant difference was found between Group A (${fmtN(ma)}) and Group B (${fmtN(mb)}) at α=${alpha} (p=${fmt3(pval)}).`;
+  const eff=`The difference is ${fmtN(Math.abs(diff))} (${effectLabel(d)} effect, Cohen's d=${d.toFixed(2)}). 95% CI for the true difference: [${fmtN(ciLo)}, ${fmtN(ciHi)}].`;
+  const pow=power<0.8&&!sig?` Power is ${(power*100).toFixed(0)}% — consider ~${minSampleSize(d,alpha,0.8,tail)} observations per group.`:'';
+  return verdict+' '+eff+pow;
+}
+
+function buildPlain_propZ(phat,p0,n,z,pval,sig,alpha,tail,h,power){
+  const dir=tail==='two'?'different from':(tail==='greater'?'greater than':'less than');
+  const verdict=sig
+?`The observed rate of ${fmtPct(phat)} (n=${n.toLocaleString()}) is statistically significantly ${dir} the baseline of ${fmtPct(p0)} (z=${fmtN(z)}, p=${fmt3(pval)}).`
+:`The observed rate of ${fmtPct(phat)} is not significantly ${dir} the baseline ${fmtPct(p0)} at α=${alpha} (p=${fmt3(pval)}).`;
+  const pow=power<0.8&&!sig?` Power is ${(power*100).toFixed(0)}% — you may need ~${minSampleSize(h,alpha,0.8,tail).toLocaleString()} observations to reliably detect this difference.`:'';
+  return verdict+pow;
+}
+
+function buildPlain_twoPropZ(p1,p2,n1,n2,z,pval,sig,alpha,tail,h,lift,power,diff){
+  const dir=tail==='two'?'different from':(tail==='greater'?'higher than':'lower than');
+  const liftStr=lift>=0?`+${lift.toFixed(1)}%`:`${lift.toFixed(1)}%`;
+  const verdict=sig
+?`The variant rate (${fmtPct(p2)}) is statistically significantly ${dir} the control (${fmtPct(p1)}) — a ${liftStr} relative lift (z=${fmtN(z)}, p=${fmt3(pval)}).`
+:`No significant difference between variant (${fmtPct(p2)}) and control (${fmtPct(p1)}) at α=${alpha} (p=${fmt3(pval)}). The ${liftStr} lift could be noise.`;
+  const pow=power<0.8&&!sig?` Power is ${(power*100).toFixed(0)}% — recommended minimum n≈${minSampleSize(h,alpha,0.8,tail).toLocaleString()} per group for 80% power.`:'';
+  return verdict+pow;
+}
+
+function buildPlain_chiSq(cats,obs,exp,chiSq,df,pval,sig,alpha,V,contributions,lowCells){
+  const verdict=sig
+?`The observed distribution is significantly different from the expected distribution (χ²(${df})=${chiSq.toFixed(2)}, p=${fmt3(pval)}).`
+:`The observed distribution is consistent with the expected distribution (χ²(${df})=${chiSq.toFixed(2)}, p=${fmt3(pval)}) — no significant deviation at α=${alpha}.`;
+  const top=contributions.sort((a,b)=>b.contrib-a.contrib).slice(0,2).map(c=>`${c.cat} (residual=${c.resid>0?'+':''}${c.resid})`).join(' and ');
+  const eff=sig?` The largest deviations are in ${top}. Effect size: Cramér's V=${V.toFixed(3)} (${effectLabel(V)}).`:'';
+  const warn=lowCells>0?` Warning: ${lowCells} cell(s) have expected counts below 5 — chi-square approximation may be unreliable.`:'';
+  return verdict+eff+warn;
+}
+
+function buildPlain_pairedT(diffs,dbar,sd,n,t,df,pval,sig,alpha,tail,d,power){
+  const dir=tail==='two'?'changed':(tail==='greater'?'increased':'decreased');
+  const verdict=sig
+?`The metric ${dir} significantly — mean change = ${fmtN(dbar)} (t(${df})=${fmtN(t)}, p=${fmt3(pval)}).`
+:`No significant ${tail==='two'?'change':'shift'} detected at α=${alpha} (p=${fmt3(pval)}). Mean change was ${fmtN(dbar)}, which could be noise.`;
+  const eff=`Effect size: Cohen's d=${d.toFixed(2)} (${effectLabel(d)}).`;
+  const pow=power<0.8&&!sig?` Power=${(power*100).toFixed(0)}% — more pairs may be needed.`:'';
+  return verdict+' '+eff+pow;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  RENDER RESULT
+// ═══════════════════════════════════════════════════════════════════════════
+let hypTestHistory = [];
+let currentTest = 'one_sample_t';
+
+function selectTest(testId) {
+  currentTest = testId;
+  // Update card selection
+  document.querySelectorAll('.test-card').forEach(c=>c.classList.remove('selected'));
+  const cardMap={one_sample_t:'tc-onesample',two_sample_t:'tc-twosample',proportion_z:'tc-proportion',two_proportion_z:'tc-twoprop',chi_square:'tc-chisq',paired_t:'tc-paired'};
+  document.getElementById(cardMap[testId])?.classList.add('selected');
+  // Show correct inputs
+  document.querySelectorAll('[id^="inputs-"]').forEach(el=>el.style.display='none');
+  const inp = document.getElementById('inputs-'+testId);
+  if(inp) inp.style.display='';
+  // Hide previous result
+  document.getElementById('hyp-step3').style.display='none';
+}
+
+function runHypTest() {
+  const testFns = {one_sample_t:test_one_sample_t,two_sample_t:test_two_sample_t,proportion_z:test_proportion_z,two_proportion_z:test_two_proportion_z,chi_square:test_chi_square,paired_t:test_paired_t};
+  const fn = testFns[currentTest];
+  if(!fn) return;
+  const result = fn();
+  if(result.error){
+document.getElementById('hyp-result-container').innerHTML=`<div class="error-box">${esc(result.error)}</div>`;
+document.getElementById('hyp-step3').style.display='';
+return;
+  }
+  renderHypResult(result);
+  // Add to history
+  hypTestHistory.unshift({test:result.test,sig:result.sig,pval:result.pval,timestamp:new Date().toLocaleTimeString(),result});
+  renderHistory();
+}
+
+function renderHypResult(r) {
+  const container = document.getElementById('hyp-result-container');
+  const sigClass = r.pval < r.alpha ? 'sig' : r.pval < r.alpha*2 ? 'borderline' : 'not-sig';
+  const verdictText = r.pval < r.alpha ? '✓ Statistically significant' : r.pval < r.alpha*2 ? '~ Borderline' : '✗ Not significant';
+  const pFmt = p => isNaN(p)||p===null?'—':p<0.001?'< 0.001':p.toFixed(4);
+
+  // Distribution visualization
+  const vizHTML = buildDistViz(r);
+
+  // Chi-square category breakdown
+  const chiCatsHTML = r.contributions ? `
+<div style="margin-bottom:16px">
+  <div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Category breakdown</div>
+  ${r.contributions.map(c=>`<div class="driver-row" style="grid-template-columns:120px 1fr 60px 60px 60px">
+    <span class="d-lbl">${esc(c.cat)}</span>
+    <div class="bar-w"><div class="bar-f" style="width:${Math.min(100,Math.abs(c.resid)/3*100)}%;background:${c.resid>0?'#40C18D':'#ff6b6b'}"></div></div>
+    <span class="d-val">${c.obs}</span>
+    <span class="d-sig">exp ${c.exp}</span>
+    <span class="d-sig" style="color:${Math.abs(c.resid)>2?'var(--amber)':'var(--dim)'}">r=${c.resid}</span>
+  </div>`).join('')}
+  <div style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:8px">r = standardized residual · |r| > 2 suggests notable deviation</div>
+</div>` : '';
+
+  // Power meter
+  const powerHTML = r.power!=null ? `
+<div style="margin-bottom:16px">
+  <div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Statistical power</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div style="flex:1">
+      <div class="power-bar-track">
+        <div class="power-bar-fill" style="width:${(r.power*100).toFixed(0)}%;background:${r.power>=0.8?'#40C18D':r.power>=0.5?'var(--amber)':'var(--red)'}"></div>
+      </div>
+    </div>
+    <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:${r.power>=0.8?'var(--teal)':r.power>=0.5?'var(--amber)':'var(--red)'};min-width:40px">${(r.power*100).toFixed(0)}%</span>
+    <span style="font-family:var(--mono);font-size:11px;color:var(--dim)">${r.power>=0.8?'Adequate':'Underpowered'}</span>
+  </div>
+  ${r.minN!=null&&r.power<0.8?`<div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px">For 80% power: ~${r.minN.toLocaleString()} obs${r.test.includes('wo')?'/group':''}</div>`:''}
+</div>` : '';
+
+  container.innerHTML = `
+<div class="result-hero ${sigClass}">
+  <div class="result-verdict ${sigClass}">${verdictText}</div>
+  <p class="result-plain">${esc(r.plain)}</p>
+</div>
+
+<div class="stats-grid-4" style="margin-bottom:16px">
+  <div class="stat-c"><div class="stat-lbl">${esc(r.stat_label||'test stat')}</div><div class="stat-val ${sigClass==='sig'?'pos':sigClass==='not-sig'?'neu':'warn'}" style="font-size:18px">${isNaN(r.stat)?'—':r.stat.toFixed(4)}</div></div>
+  <div class="stat-c"><div class="stat-lbl">p-value</div><div class="stat-val ${sigClass==='sig'?'pos':sigClass==='not-sig'?'neu':'warn'}" style="font-size:18px">${pFmt(r.pval)}</div></div>
+  <div class="stat-c"><div class="stat-lbl">${esc(r.effectLabel||'effect size')}</div><div class="stat-val neu" style="font-size:18px">${r.effect!=null?r.effect.toFixed(3):'—'}</div><div style="font-family:var(--mono);font-size:9px;color:var(--dim)">${effectLabel(r.effect||0)}</div></div>
+  <div class="stat-c"><div class="stat-lbl">df</div><div class="stat-val neu" style="font-size:18px">${r.df===Infinity||r.df==null?'∞':Math.round(r.df)}</div></div>
+</div>
+
+${r.ciLo!=null?`<div class="stat-c" style="margin-bottom:16px;background:var(--surface2);padding:12px 16px;border-radius:8px;border:1px solid var(--border)">
+  <div class="stat-lbl">${r.ciLevel||95}% confidence interval</div>
+  <div style="font-family:var(--mono);font-size:14px;color:var(--text);margin-top:4px">[${r.ciLo.toFixed(4)}, ${r.ciHi.toFixed(4)}]</div>
+</div>`:''}
+
+${vizHTML}
+${chiCatsHTML}
+${powerHTML}
+
+<div class="tech-row">
+  <span class="tech-tag">${esc(r.test)}</span>
+  <span class="tech-tag">α = ${r.alpha}</span>
+  <span class="tech-tag">${r.tail?r.tail+'-tailed':''}</span>
+  <span class="sig-pill ${sigClass==='sig'?'sig-yes':sigClass==='borderline'?'sig-warn':'sig-no'}">p = ${pFmt(r.pval)}</span>
+</div>`;
+
+  document.getElementById('hyp-step3').style.display='';
+  document.getElementById('hyp-step3').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function buildDistViz(r) {
+  if(isNaN(r.stat)) return '';
+  const isZ = !isFinite(r.df) || r.df > 200;
+  const label = isZ ? 'z' : 't';
+  const W = 400, H = 80;
+  // Generate distribution curve points
+  const range = 4.5;
+  const pts = 80;
+  const step = range*2/pts;
+  let svgPts = '';
+  for(let i=0;i<=pts;i++){
+const x = -range + i*step;
+const y = isZ ? 0.3989*Math.exp(-x*x/2) : 0.3989*Math.exp(-x*x/2); // approx t with normal
+const px = (x+range)/(range*2)*W;
+const py = H - y/0.4*H*0.9;
+svgPts += (i===0?'M':'L') + `${px.toFixed(1)},${py.toFixed(1)} `;
+  }
+  // Rejection regions
+  const alpha = r.alpha || 0.05;
+  const critZ = r.tail==='two' ? normInv(1-alpha/2) : normInv(1-alpha);
+  const critX1 = r.tail==='less' ? (critZ+range)/(range*2)*W : r.tail==='greater' ? 0 : null;
+  const critX2 = r.tail==='less' ? 0 : r.tail==='greater' ? (critZ+range)/(range*2)*W : null;
+  const statX = Math.max(5, Math.min(W-5, (r.stat+range)/(range*2)*W));
+  const critLineX = (critZ+range)/(range*2)*W;
+  const critLineX2 = (-critZ+range)/(range*2)*W;
+
+  const rejectRects = r.tail==='two'
+? `<rect x="0" y="0" width="${critLineX2.toFixed(1)}" height="${H}" fill="rgba(255,107,107,0.12)"/>
+   <rect x="${(W-critLineX2).toFixed(1)}" y="0" width="${critLineX2.toFixed(1)}" height="${H}" fill="rgba(255,107,107,0.12)"/>`
+: r.tail==='greater'
+? `<rect x="${critLineX.toFixed(1)}" y="0" width="${(W-critLineX).toFixed(1)}" height="${H}" fill="rgba(255,107,107,0.12)"/>`
+: `<rect x="0" y="0" width="${(W-critLineX).toFixed(1)}" height="${H}" fill="rgba(255,107,107,0.12)"/>`;
+
+  const critLines = r.tail==='two'
+? `<line x1="${critLineX2.toFixed(1)}" y1="0" x2="${critLineX2.toFixed(1)}" y2="${H}" stroke="rgba(255,107,107,0.7)" stroke-width="1.5" stroke-dasharray="4,3"/>
+   <line x1="${(W-critLineX2).toFixed(1)}" y1="0" x2="${(W-critLineX2).toFixed(1)}" y2="${H}" stroke="rgba(255,107,107,0.7)" stroke-width="1.5" stroke-dasharray="4,3"/>`
+: r.tail==='greater'
+? `<line x1="${critLineX.toFixed(1)}" y1="0" x2="${critLineX.toFixed(1)}" y2="${H}" stroke="rgba(255,107,107,0.7)" stroke-width="1.5" stroke-dasharray="4,3"/>`
+: `<line x1="${(W-critLineX).toFixed(1)}" y1="0" x2="${(W-critLineX).toFixed(1)}" y2="${H}" stroke="rgba(255,107,107,0.7)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+
+  const sigCol = r.pval < r.alpha ? '#40C18D' : '#f5a623';
+
+  return `<div style="margin-bottom:16px">
+<div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Distribution · ${r.tail||'two'}-tailed at α=${alpha}</div>
+<svg width="100%" viewBox="0 0 ${W} ${H}" style="background:var(--surface2);border-radius:8px;display:block">
+  ${rejectRects}
+  <path d="${svgPts}" fill="none" stroke="rgba(108,99,255,0.6)" stroke-width="2"/>
+  ${critLines}
+  <line x1="${statX.toFixed(1)}" y1="0" x2="${statX.toFixed(1)}" y2="${H}" stroke="${sigCol}" stroke-width="2"/>
+  <text x="${Math.min(W-45,Math.max(5,statX+4))}" y="14" font-family="monospace" font-size="9" fill="${sigCol}">${label}=${r.stat.toFixed(2)}</text>
+  <text x="4" y="${H-4}" font-family="monospace" font-size="8" fill="rgba(122,120,150,0.7)">${(-range).toFixed(0)}</text>
+  <text x="${W-16}" y="${H-4}" font-family="monospace" font-size="8" fill="rgba(122,120,150,0.7)">${range.toFixed(0)}</text>
+  <text x="${(W/2-8)}" y="${H-4}" font-family="monospace" font-size="8" fill="rgba(122,120,150,0.7)">0</text>
+</svg>
+<div style="display:flex;gap:16px;margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--dim)">
+  <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:2px;background:rgba(255,107,107,0.7)"></span>Critical region</span>
+  <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:2px;background:${sigCol}"></span>Test statistic</span>
+</div>
+  </div>`;
+}
+
+function renderHistory() {
+  if(!hypTestHistory.length) return;
+  const list = document.getElementById('hyp-history-list');
+  const panel = document.getElementById('hyp-history');
+  list.innerHTML = hypTestHistory.slice(0,10).map((h,i)=>`
+<div class="history-row" style="cursor:pointer" onclick="replayHistory(${i})">
+  <div class="history-badge" style="background:${h.sig?'var(--teal)':h.pval<h.result.alpha*2?'var(--amber)':'var(--dim)'}"></div>
+  <span style="font-weight:600;font-size:12px">${esc(h.test)}</span>
+  <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">p=${h.pval<0.001?'<.001':h.pval.toFixed(3)}</span>
+  <span style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-left:auto">${h.timestamp}</span>
+</div>`).join('');
+  panel.style.display='';
+}
+
+function replayHistory(i) {
+  if(hypTestHistory[i]) renderHypResult(hypTestHistory[i].result);
+}
+
+function clearHistory() {
+  hypTestHistory=[];
+  document.getElementById('hyp-history').style.display='none';
+}
+
+function clearHypResult() {
+  document.getElementById('hyp-step3').style.display='none';
+  document.getElementById('hyp-result-container').innerHTML='';
+}
+
+
+}
+
+// Kick off after first paint via requestIdleCallback (or setTimeout fallback)
+if (typeof requestIdleCallback !== 'undefined') {
+  requestIdleCallback(_runHypInit, { timeout: 500 });
+} else {
+  setTimeout(_runHypInit, 50);
+}
+
+
+
+window.addEventListener('DOMContentLoaded', () => {
+  initKeyBanner();
+});
+
+</script>
+</body>
+</html>
